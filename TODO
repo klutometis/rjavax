@@ -3,19 +3,7 @@
   this will require a call from R to Java to the effect of: this named
   list of procedures implements that interface.
 
-  we'll have the REXPs corresponding to closures; look at
-  =Rengine.Rengine= not =JRI.Rengine=; we'll have a list of REXPs.
-
-  register list of functions, state saved in InvocationHandler; give
-  as a return value IH; return an IH whose constructor takes the
-  dictionary; custom java code implementing IH; class generator in
-  reference class, wrapper around invocation handler;
-
-  implementInterface, pass dictionary: get constructor or
-  implementation handler; return the closure, if they call the
-  closure, they get a object; think about state at some point.
-
-  list of methods declared in the interface.
+  see [[notes-2011-03-28][notes]].
 * DONE example of a proxy
   CLOSED: [2011-03-28 Mon 09:40]
   #+BEGIN_SRC java :tangle TestInterfaceProxy.java
@@ -97,3 +85,19 @@
         }
     }
   #+END_SRC
+* Notes
+** Mon Mar 28 10:50:13 PDT 2011
+# <<notes-2011-03-28>>
+   we'll have the REXPs corresponding to closures; look at
+   =Rengine.Rengine= not =JRI.Rengine=; we'll have a list of REXPs.
+
+   register list of functions, state saved in InvocationHandler; give
+   as a return value IH; return an IH whose constructor takes the
+   dictionary; custom java code implementing IH; class generator in
+   reference class, wrapper around invocation handler;
+
+   implementInterface, pass dictionary: get constructor or
+   implementation handler; return the closure, if they call the
+   closure, they get a object; think about state at some point.
+
+   list of methods declared in the interface.
