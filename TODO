@@ -1,4 +1,26 @@
 # -*- org -*-
+* DONE calling a java function (given a class) from within rJava
+  CLOSED: [2011-03-30 Wed 02:32]
+  - CLOSING NOTE [2011-03-30 Wed 02:33] \\
+    requires, however, a non-trivial environment (see [[./Makefile][Makefile]]).
+  #+BEGIN_SRC java :tangle TrivialFunction.java
+    public class TrivialFunction {
+        public void trivialFunction() {
+            System.out.println("hello, pseudo-trivial world!");
+        }
+    }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle test-java-function.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    .jinit(classpath='.',
+           parameters=sprintf('-Djava.library.path=%s',
+             Sys.getenv('JAVA_LIBRARY_PATH')))
+    tf = .jnew('TrivialFunction')
+    .jcall(tf, 'V', 'trivialFunction')
+    
+  #+END_SRC
 * TODO dispatch on proxy-method (Java) -> implementation-method (R) dictionary
   this will require a call from R to Java to the effect of: this named
   list of procedures implements that interface.
