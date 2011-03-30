@@ -95,6 +95,8 @@
                         return implementation.getEngine()
                             .eval(new REXPLanguage(new RList(new REXP[] {
                                             implementation,
+                                            // HACK: we're only testing a
+                                            // monadic function!
                                             (REXP) args[0]
                                         })),
                                 null,
@@ -128,6 +130,8 @@
     import org.rosuda.REngine.REXP;
     
     public interface Mogrifier {
+        // HACK: I really want to be giving and taking a String, not an
+        // REXP and an Object!
         public REXP mogrify(Object string);
     }
     

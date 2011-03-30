@@ -35,6 +35,8 @@ public class RInterfaceProxy {
                     return implementation.getEngine()
                         .eval(new REXPLanguage(new RList(new REXP[] {
                                         implementation,
+                                        // HACK: we're only testing a
+                                        // monadic function!
                                         (REXP) args[0]
                                     })),
                             null,
