@@ -6,28 +6,26 @@
            parameters=sprintf('-Djava.library.path=%s',
              Sys.getenv('JAVA_LIBRARY_PATH')))
     .jengine(TRUE)
-    ## .jcall('RInterfaceProxy',
-    ##        'Ljava/lang/reflect/InvocationHandler',
-    ##        'register',
-    ##        'TrivialInterface',
-    ##        list(method=function() {}))
     
-    ## implementations = .jnew('java/util/HashMap')
-    ## .jcall(implementations, "V", 'put', 'method', 'test')
+    to.hashmap <- function(implementations) {
+      hashmap <- new(J('java.util.HashMap'))
+      ## Really need a Foreach here, since we're not using the return
+      ## value.
+      implementations <- c(toString=function() "RInterfaceProxy",
+                           implementations)
+      Map(function(name, implementation)
+          hashmap$put(name, toJava(implementation)),
+          names(implementations),
+          implementations)
+      hashmap
+    }
     
-    ## J('RInterfaceProxy', 'register', 'TrivialInterface', implementations)
+    proxy <- new(J('RInterfaceProxy'),
+      'TrivialInterface',
+      to.hashmap(list(method=function() cat('hello world'))))
     
-    ## J('RInterfaceProxy', 'register', 'TrivialInterface', toJava(list(method=toJava(function() { cat('hello world\n') }))))
-    ## reference = toJava(function() { cat('hello world\n') })
-    
-    ## J('RInterfaceProxy', 'register', 'TrivialInterface', .jarray(list(method=toJava(function() { cat('hello world\n') }))))
-    
-    ## J('RInterfaceProxy', 'register', 'TrivialInterface', toJava(list(method=toJava(function() { cat('hello world\n') }))))
-    
-    implementations <- .jnew('java/util/HashMap')
-    implementations$put('method', toJava(function() { cat('hello world\n') }))
-    
-    J('RInterfaceProxy', 'register', 'TrivialInterface', implementations)
+    stopifnot(capture.output(proxy$newInstance()$method()) ==
+              "hello world")
     
   #+END_SRC
 
@@ -45,45 +43,52 @@
     import org.rosuda.REngine.REXPLanguage;
     
     public class RInterfaceProxy {
-        public static InvocationHandler register(String implementable,
-                                                 // Object[] implementations,
-                                                 // REXPReference implementations,
-                                                 HashMap<String, REXPReference> implementations) {
-            try {
-                for (Map.Entry e: implementations.entrySet()) {
-                    System.out.println(e.getKey());
-                    System.out.println(e.getValue());
-                }
-                // for (Object o: implementations) {
-                //     System.out.println(o);
-                // }
-                // System.out.println(implementations);
-                // implementations.getEngine().eval(new REXPLanguage(new RList(new REXP[] { implementations })),
-                //                                  null,
-                //                                  false);
-                // System.out.println(implementations.asList());
-                // for (Object key: implementations.asList().keySet()) {
-                //     System.out.println(key);
-                //     REXP method = (REXP) implementations.asList().get(key);
-                //     System.out.println(method.isReference());
-                // }
-                // to use this in Java you would use something like:
-                // public static REXP call(REXPReference fn)
-                //     throws REngineException, REXPMismatchException {
-                //     return fn.getEngine().eval(new REXPLanguage(new RList(new REXP[] { fn })),
-                //                                null,
-                //                                false);
-                // }
-            } catch (Throwable e) {
-                e.printStackTrace();
-            }
+        public String interfaceName;
+        public HashMap<String, REXPReference> implementations;
+        public InvocationHandler handler;
+    
+        public RInterfaceProxy(String interfaceName,
+                               HashMap<String, REXPReference> implementations) {
+            this.interfaceName = interfaceName;
+            this.implementations = implementations;
+            this.handler = makeInvocationHandler();
+        }
+    
+        public InvocationHandler makeInvocationHandler() {
             return new InvocationHandler() {
                 public Object invoke(Object proxy,
                                      Method method,
                                      Object[] args) {
-                    return new Object();
+                    try {
+                        REXPReference implementation =
+                            RInterfaceProxy.this.implementations
+                            .get(method.getName());
+                        return implementation.getEngine()
+                            .eval(new REXPLanguage(new RList(new REXP[] {
+                                            implementation
+                                        })),
+                                null,
+                                // docs show false
+                                true);
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                    return null;
                 }
             };
+        }
+    
+        public Object newInstance() {
+            try {
+                Class interfaceClass = Class.forName(interfaceName);
+                return Proxy.newProxyInstance(interfaceClass.getClassLoader(),
+                                              new Class[] { interfaceClass },
+                                              handler);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+    
+            return null;
         }
     }
     
