@@ -6,12 +6,27 @@ library(rJava)
          Sys.getenv('JAVA_LIBRARY_PATH')))
 .jengine(TRUE)
 
+merge.lists <- function(...) {
+  list = do.call(c, list(...))
+  list[unique(names(do.call(c, list)))]
+}
+
 to.hashmap <- function(implementations) {
   hashmap <- new(J('java.util.HashMap'))
+
+  ## Some things that Java expects of Objects.
+  default.implementations <- list(toString=function()
+                                  "RInterfaceProxy")
+
+
+  implementations <-
+    merge.lists(implementations,
+                default.implementations)
+  
+  str(implementations)
+
   ## Really need a Foreach here, since we're not using the return
   ## value.
-  implementations <- c(toString=function() "RInterfaceProxy",
-                       implementations)
   Map(function(name, implementation)
       hashmap$put(name, toJava(implementation)),
       names(implementations),
@@ -21,7 +36,8 @@ to.hashmap <- function(implementations) {
 
 proxy <- new(J('RInterfaceProxy'),
   'TrivialInterface',
-  to.hashmap(list(method=function() cat('hello world'))))
+  to.hashmap(list(method=function() cat('hello world'),
+                  toString='wirlkch?')))
 
 stopifnot(capture.output(proxy$newInstance()$method()) ==
           "hello world")
