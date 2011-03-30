@@ -5,19 +5,22 @@ export JAVA_LIBRARY_PATH := $(R_HOME)/library/rJava/jri
 export CLASSPATH := .:$(shell echo *.jar | tr ' ' ':')
 FRAGMENTS := test-java-function.R \
 	TestInterfaceProxy.java \
-	TrivialFunction.java
+	TrivialFunction.java \
+	RInterfaceProxy.java \
+	TrivialInterface.java \
+	test-register-proxy.R
 
-.PHONY: test-interface-proxy test-java-function
+%.class : %.java
+	javac -classpath $(CLASSPATH) $<
 
-test-interface-proxy: TestInterfaceProxy.java
-	javac -classpath $(CLASSPATH) TestInterfaceProxy.java && \
+test-register-proxy: test-register-proxy.R RInterfaceProxy.class TrivialInterface.class
+	./test-register-proxy.R
+
+test-interface-proxy: TestInterfaceProxy.class
 	java -enableassertions \
 		-Djava.library.path=$(JAVA_LIBRARY_PATH) \
 		-classpath $(CLASSPATH) \
-		TestInterfaceProxy
-
-TrivialFunction.class: TrivialFunction.java
-	javac TrivialFunction.java
+		$(<:.class=)
 
 test-java-function: test-java-function.R TrivialFunction.class
 	./test-java-function.R

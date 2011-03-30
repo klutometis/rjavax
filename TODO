@@ -1,4 +1,100 @@
 # -*- org -*-
+* TODO register R-functions with a Java-proxy
+  #+BEGIN_SRC R :tangle test-register-proxy.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    .jinit(classpath=Sys.getenv('CLASSPATH'),
+           parameters=sprintf('-Djava.library.path=%s',
+             Sys.getenv('JAVA_LIBRARY_PATH')))
+    .jengine(TRUE)
+    ## .jcall('RInterfaceProxy',
+    ##        'Ljava/lang/reflect/InvocationHandler',
+    ##        'register',
+    ##        'TrivialInterface',
+    ##        list(method=function() {}))
+    
+    ## implementations = .jnew('java/util/HashMap')
+    ## .jcall(implementations, "V", 'put', 'method', 'test')
+    
+    ## J('RInterfaceProxy', 'register', 'TrivialInterface', implementations)
+    
+    ## J('RInterfaceProxy', 'register', 'TrivialInterface', toJava(list(method=toJava(function() { cat('hello world\n') }))))
+    ## reference = toJava(function() { cat('hello world\n') })
+    
+    ## J('RInterfaceProxy', 'register', 'TrivialInterface', .jarray(list(method=toJava(function() { cat('hello world\n') }))))
+    
+    ## J('RInterfaceProxy', 'register', 'TrivialInterface', toJava(list(method=toJava(function() { cat('hello world\n') }))))
+    
+    implementations <- .jnew('java/util/HashMap')
+    implementations$put('method', toJava(function() { cat('hello world\n') }))
+    
+    J('RInterfaceProxy', 'register', 'TrivialInterface', implementations)
+    
+  #+END_SRC
+
+  #+BEGIN_SRC java :tangle RInterfaceProxy.java
+    import java.lang.reflect.InvocationHandler;
+    import java.lang.reflect.Method;
+    import java.lang.reflect.Proxy;
+    import java.util.HashMap;
+    import java.util.Map;
+    import java.util.Set;
+    
+    import org.rosuda.REngine.RList;
+    import org.rosuda.REngine.REXP;
+    import org.rosuda.REngine.REXPReference;
+    import org.rosuda.REngine.REXPLanguage;
+    
+    public class RInterfaceProxy {
+        public static InvocationHandler register(String implementable,
+                                                 // Object[] implementations,
+                                                 // REXPReference implementations,
+                                                 HashMap<String, REXPReference> implementations) {
+            try {
+                for (Map.Entry e: implementations.entrySet()) {
+                    System.out.println(e.getKey());
+                    System.out.println(e.getValue());
+                }
+                // for (Object o: implementations) {
+                //     System.out.println(o);
+                // }
+                // System.out.println(implementations);
+                // implementations.getEngine().eval(new REXPLanguage(new RList(new REXP[] { implementations })),
+                //                                  null,
+                //                                  false);
+                // System.out.println(implementations.asList());
+                // for (Object key: implementations.asList().keySet()) {
+                //     System.out.println(key);
+                //     REXP method = (REXP) implementations.asList().get(key);
+                //     System.out.println(method.isReference());
+                // }
+                // to use this in Java you would use something like:
+                // public static REXP call(REXPReference fn)
+                //     throws REngineException, REXPMismatchException {
+                //     return fn.getEngine().eval(new REXPLanguage(new RList(new REXP[] { fn })),
+                //                                null,
+                //                                false);
+                // }
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+            return new InvocationHandler() {
+                public Object invoke(Object proxy,
+                                     Method method,
+                                     Object[] args) {
+                    return new Object();
+                }
+            };
+        }
+    }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC java :tangle TrivialInterface.java
+    public interface TrivialInterface {
+        public void method();
+    }
+    
+  #+END_SRC
 * DONE calling a java function (given a class) from within rJava
   CLOSED: [2011-03-30 Wed 02:32]
   - CLOSING NOTE [2011-03-30 Wed 02:33] \\
@@ -101,10 +197,10 @@
    register list of functions, state saved in InvocationHandler; give
    as a return value IH; return an IH whose constructor takes the
    dictionary; custom java code implementing IH; class generator in
-   reference class, wrapper around invocation handler;
+   reference class, wrapper around invocation handler.
 
    implementInterface, pass dictionary: get constructor or
    implementation handler; return the closure, if they call the
-   closure, they get a object; think about state at some point.
+   closure, they get an object; think about state at some point.
 
    list of methods declared in the interface.
