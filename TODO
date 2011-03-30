@@ -1,5 +1,12 @@
 # -*- org -*-
-* TODO register R-functions with a Java-proxy
+* DONE register R-functions with a Java-proxy
+  CLOSED: [2011-03-30 Wed 05:42]
+  - CLOSING NOTE [2011-03-30 Wed 05:43] \\
+    couple weirdnesses: can't preserve =REXPReferences= via =toJava= in
+    named lists (though converting to vectors over =.jarray=); resorted,
+    therefore, to a =HashMap=.
+    
+    also, can't return anything but =null= from the =InvocationHandler=.
   #+BEGIN_SRC R :tangle test-register-proxy.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     library(rJava)
     .jinit(classpath=Sys.getenv('CLASSPATH'),
@@ -122,7 +129,8 @@
     .jcall(tf, 'V', 'trivialFunction')
     
   #+END_SRC
-* TODO dispatch on proxy-method (Java) -> implementation-method (R) dictionary
+* DONE dispatch on proxy-method (Java) -> implementation-method (R) dictionary
+  CLOSED: [2011-03-30 Wed 05:43]
   this will require a call from R to Java to the effect of: this named
   list of procedures implements that interface.
 
