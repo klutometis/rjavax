@@ -34,7 +34,8 @@ public class RInterfaceProxy {
                         .get(method.getName());
                     return implementation.getEngine()
                         .eval(new REXPLanguage(new RList(new REXP[] {
-                                        implementation
+                                        implementation,
+                                        (REXP) args[0]
                                     })),
                             null,
                             // docs show false

@@ -7,14 +7,14 @@ FRAGMENTS := test-java-function.R \
 	TestInterfaceProxy.java \
 	TrivialFunction.java \
 	RInterfaceProxy.java \
-	TrivialInterface.java \
-	test-register-proxy.R
+	Mogrifier.java \
+	test-mogrifier.R
 
 %.class : %.java
 	javac -classpath $(CLASSPATH) $<
 
-test-register-proxy: test-register-proxy.R RInterfaceProxy.class TrivialInterface.class
-	./test-register-proxy.R
+test-mogrifier: RInterfaceProxy.class Mogrifier.class test-mogrifier.R 
+	./test-mogrifier.R
 
 test-interface-proxy: TestInterfaceProxy.class
 	java -enableassertions \

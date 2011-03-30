@@ -1,6 +1,12 @@
 # -*- org -*-
 * TODO pass values to interface-methods
-* TODO return values from invocation-handler
+  there are some mixups, somehow, while translating between Java and
+  R.
+* DONE return values from invocation-handler
+  CLOSED: [2011-03-30 Wed 06:10]
+  - CLOSING NOTE [2011-03-30 Wed 06:10] \\
+    this doesn't work for the given example, of course, because the
+    interface-method returns =void=!
 * DONE register R-functions with a Java-proxy
   CLOSED: [2011-03-30 Wed 05:42]
   - CLOSING NOTE [2011-03-30 Wed 05:43] \\
@@ -9,7 +15,7 @@
     therefore, to a =HashMap=.
     
     also, can't return anything but =null= from the =InvocationHandler=.
-  #+BEGIN_SRC R :tangle test-register-proxy.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+  #+BEGIN_SRC R :tangle test-mogrifier.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     library(rJava)
     .jinit(classpath=Sys.getenv('CLASSPATH'),
            parameters=sprintf('-Djava.library.path=%s',
@@ -43,11 +49,12 @@
     }
     
     proxy <- new(J('RInterfaceProxy'),
-      'TrivialInterface',
-      to.hashmap(list(method=function() cat('hello world'))))
+      'Mogrifier',
+      to.hashmap(list(mogrify=function(string)
+                      new(J("java.lang.String"),
+                          paste(string, 'mogrified', sep='-')))))
     
-    stopifnot(capture.output(proxy$newInstance()$method()) ==
-              "hello world")
+    proxy$newInstance()$mogrify(toJava('totally'))
     
   #+END_SRC
 
@@ -87,7 +94,8 @@
                             .get(method.getName());
                         return implementation.getEngine()
                             .eval(new REXPLanguage(new RList(new REXP[] {
-                                            implementation
+                                            implementation,
+                                            (REXP) args[0]
                                         })),
                                 null,
                                 // docs show false
@@ -116,9 +124,11 @@
     
   #+END_SRC
 
-  #+BEGIN_SRC java :tangle TrivialInterface.java
-    public interface TrivialInterface {
-        public void method();
+  #+BEGIN_SRC java :tangle Mogrifier.java
+    import org.rosuda.REngine.REXP;
+    
+    public interface Mogrifier {
+        public REXP mogrify(Object string);
     }
     
   #+END_SRC
