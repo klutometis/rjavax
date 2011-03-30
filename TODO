@@ -14,7 +14,7 @@
 
   #+BEGIN_SRC R :tangle test-java-function.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     library(rJava)
-    .jinit(classpath='.',
+    .jinit(classpath=Sys.getenv('CLASSPATH'),
            parameters=sprintf('-Djava.library.path=%s',
              Sys.getenv('JAVA_LIBRARY_PATH')))
     tf = .jnew('TrivialFunction')
