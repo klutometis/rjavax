@@ -1,4 +1,6 @@
 # -*- org -*-
+* TODO pass values to interface-methods
+* TODO return values from invocation-handler
 * DONE register R-functions with a Java-proxy
   CLOSED: [2011-03-30 Wed 05:42]
   - CLOSING NOTE [2011-03-30 Wed 05:43] \\

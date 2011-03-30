@@ -23,8 +23,6 @@ to.hashmap <- function(implementations) {
     merge.lists(implementations,
                 default.implementations)
   
-  str(implementations)
-
   ## Really need a Foreach here, since we're not using the return
   ## value.
   Map(function(name, implementation)
@@ -36,8 +34,7 @@ to.hashmap <- function(implementations) {
 
 proxy <- new(J('RInterfaceProxy'),
   'TrivialInterface',
-  to.hashmap(list(method=function() cat('hello world'),
-                  toString='wirlkch?')))
+  to.hashmap(list(method=function() cat('hello world'))))
 
 stopifnot(capture.output(proxy$newInstance()$method()) ==
           "hello world")
