@@ -10,21 +10,52 @@ import java.util.Set;
 import org.rosuda.REngine.RList;
 import org.rosuda.REngine.REngine;
 import org.rosuda.REngine.REXP;
-import org.rosuda.REngine.REXPReference;
+import org.rosuda.REngine.REXPDouble;
+import org.rosuda.REngine.REXPInteger;
+import org.rosuda.REngine.REXPFactor;
 import org.rosuda.REngine.REXPLanguage;
+import org.rosuda.REngine.REXPList;
+import org.rosuda.REngine.REXPRaw;
+import org.rosuda.REngine.REXPReference;
+import org.rosuda.REngine.REXPString;
 import org.rosuda.REngine.REXPWrapper;
 import org.rosuda.REngine.JRI.JRIEngine;
 
 public class RInterfaceProxy {
-    public String interfaceName;
-    public HashMap<String, REXPReference> implementations;
-    public InvocationHandler handler;
+    String interfaceName;
+    HashMap<String, REXPReference> implementations;
+    InvocationHandler handler;
+    static HashMap<Class, Method> translations;
 
     public RInterfaceProxy(String interfaceName,
                            HashMap<String, REXPReference> implementations) {
         this.interfaceName = interfaceName;
         this.implementations = implementations;
         this.handler = makeInvocationHandler();
+    }
+
+    static {
+        try {
+            translations =
+                new HashMap<Class, Method>() {
+                {
+                    put(REXPString.class,
+                        REXPString.class.getMethod("asString"));
+                    put(REXPRaw.class,
+                        REXPRaw.class.getMethod("asBytes"));
+                    put(REXPDouble.class,
+                        REXPDouble.class.getMethod("asDouble"));
+                    put(REXPFactor.class,
+                        REXPFactor.class.getMethod("asFactor"));
+                    put(REXPInteger.class,
+                        REXPInteger.class.getMethod("asInteger"));
+                    put(REXPList.class,
+                        REXPList.class.getMethod("asList"));                    
+                }
+            };
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
     }
 
     public InvocationHandler makeInvocationHandler() {
@@ -45,10 +76,12 @@ public class RInterfaceProxy {
                         }
                     };
                     REXP value = implementation.getEngine()
-                        .eval(new REXPLanguage(new RList(call.toArray(new REXP[0]))),
+                        .eval(new REXPLanguage
+                              (new RList (call.toArray(new REXP[0]))),
                             null,
-                            false);
-                    return value.asString();
+                            true);
+                    return RInterfaceProxy.translations
+                        .get(value.getClass()).invoke(value);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
