@@ -1,5 +1,8 @@
 # -*- org -*-
-* TODO pass values to interface-methods
+* DONE pass values to interface-methods
+  CLOSED: [2011-04-04 Mon 03:30]
+  - CLOSING NOTE [2011-04-04 Mon 03:30] \\
+    works for some native types; not yet, however, for arbitrary classes.
   there are some mixups, somehow, while translating between Java and
   R.
 * DONE return values from invocation-handler
