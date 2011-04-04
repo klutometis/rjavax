@@ -34,6 +34,19 @@ to.hashmap <- function(implementations) {
 proxy <- new(J('RInterfaceProxy'),
   'Mogrifier',
   to.hashmap(list(mogrify=function(string)
-                  paste(string, 'mogrified', sep='-'))))
+                  paste(string, 'mogrified', sep='-'),
+                  tetradicSum=function(w, x, y, z)
+                  sum(w, x, y, z))))
 
-stopifnot(proxy$newInstance()$mogrify('totally') == 'totally-mogrified')
+mogrifier <- proxy$newInstance()
+
+stopifnot(mogrifier$mogrify('totally') == 'totally-mogrified')
+
+stopifnot(mogrifier$tetradicSum(new(J('java.lang.Integer'), '1'),
+                                new(J('java.lang.Integer'), '2'),
+                                new(J('java.lang.Integer'), '3'),
+                                new(J('java.lang.Integer'), '4'))
+          == 10)
+
+stopifnot(mogrifier$tetradicSum(1, 2, 3, 4)
+          == 10)
