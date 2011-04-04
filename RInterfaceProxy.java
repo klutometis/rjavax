@@ -7,9 +7,12 @@ import java.util.Map;
 import java.util.Set;
 
 import org.rosuda.REngine.RList;
+import org.rosuda.REngine.REngine;
 import org.rosuda.REngine.REXP;
 import org.rosuda.REngine.REXPReference;
 import org.rosuda.REngine.REXPLanguage;
+import org.rosuda.REngine.REXPWrapper;
+import org.rosuda.REngine.JRI.JRIEngine;
 
 public class RInterfaceProxy {
     public String interfaceName;
@@ -32,16 +35,16 @@ public class RInterfaceProxy {
                     REXPReference implementation =
                         RInterfaceProxy.this.implementations
                         .get(method.getName());
-                    return implementation.getEngine()
+                    REXP value = implementation.getEngine()
                         .eval(new REXPLanguage(new RList(new REXP[] {
                                         implementation,
                                         // HACK: we're only testing a
                                         // monadic function!
-                                        (REXP) args[0]
+                                        REXPWrapper.wrap(args[0])
                                     })),
                             null,
-                            // docs show false
-                            true);
+                            false);
+                    return value.asString();
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

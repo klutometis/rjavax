@@ -35,7 +35,6 @@ to.hashmap <- function(implementations) {
 proxy <- new(J('RInterfaceProxy'),
   'Mogrifier',
   to.hashmap(list(mogrify=function(string)
-                  new(J("java.lang.String"),
-                      paste(string, 'mogrified', sep='-')))))
+                  paste(string, 'mogrified', sep='-'))))
 
-proxy$newInstance()$mogrify(toJava('totally'))
+stopifnot(proxy$newInstance()$mogrify('totally') == 'totally-mogrified')

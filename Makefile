@@ -10,6 +10,8 @@ FRAGMENTS := test-java-function.R \
 	Mogrifier.java \
 	test-mogrifier.R
 
+.PHONY: R
+
 %.class : %.java
 	javac -classpath $(CLASSPATH) $<
 
@@ -27,3 +29,7 @@ test-java-function: test-java-function.R TrivialFunction.class
 
 $(FRAGMENTS): TODO
 	org-tangle TODO
+
+# Invoke R with the relevant environment variables set.
+R:
+	R
