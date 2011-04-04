@@ -80,6 +80,8 @@ public class RInterfaceProxy {
                               (new RList (call.toArray(new REXP[0]))),
                             null,
                             true);
+                    // NB: need to handle the case where get returns
+                    // null.
                     return RInterfaceProxy.translations
                         .get(value.getClass()).invoke(value);
                 } catch (Throwable e) {
