@@ -34,7 +34,6 @@
       default.implementations <- list(toString=function()
                                       "RInterfaceProxy")
     
-    
       implementations <-
         merge.lists(implementations,
                     default.implementations)

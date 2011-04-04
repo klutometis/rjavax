@@ -18,7 +18,6 @@ to.hashmap <- function(implementations) {
   default.implementations <- list(toString=function()
                                   "RInterfaceProxy")
 
-
   implementations <-
     merge.lists(implementations,
                 default.implementations)
