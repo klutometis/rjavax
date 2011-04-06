@@ -299,3 +299,40 @@
    closure, they get an object; think about state at some point.
 
    list of methods declared in the interface.
+** Mon Apr  4 10:22:25 PDT 2011
+   build our own JRI class with appropriate slots; create S4 objects:
+   special call in C.
+
+   wrap it in R package; test suite; reference class; nice interface.
+
+   generator object: setRefClass; initialize method on class; every
+   reference object reference to java object that underlies it;
+   initialize method: sets up reference; wrapper methods for each
+   method in interface; send to setRefClass; fields: active bindings;
+   setRefClass gives back class generator; use normal reference class
+   api to construct objects.
+
+   setRefClass for any interface, class; given a reference to a java
+   object; instantiate reference class, have underlying java
+   object. more general than implementing of interfaces; any interface
+   has an equivalent refClass.
+
+   don't have a named class yet; define a new interface: gives them
+   back a reference; interface has been pre-defined by java; maintain:
+   class-name map; interface implementation, gives them back reference
+   generator object; wrappers could be shared across class, interface;
+   difference is in initialize method;
+
+   related but orthogonal: wrapJavaClass, proxyJavaClass; for any
+   named class: can get a generator; call directly from R, not Java.
+
+   initialize function: does what that closure what do: calls the
+   proxy method; generalize it, though, so that we can proxy any java
+   class; .jnew on the named class; allowing it to take a function in
+   the constructor; what does the constructor do? sort of like the
+   initialize method: instance exists, initializes instance.
+
+   get a java object from initialize: pass to constructor/initializer;
+   override initialization: can take arguments, fields.
+
+   fancy: custom initializers.
