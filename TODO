@@ -1,4 +1,43 @@
 # -*- org -*-
+* TODO R package
+  this seems vaguely relevant, but i'm not sure how (from [[http.://cran.r-project.org/doc/manuals/R-exts.pdf][R-exts.pdf]]):
+
+  #+BEGIN_QUOTE
+  In some rare circumstances, the configuration and cleanup scripts
+  need to know the location into which the package is being
+  installed. An example of this is a package that uses C code and
+  creates two shared object/DLLs. Usually, the object that is
+  dynamically loaded by R is linked against the second, dependent,
+  object. On some systems, we can add the location of this dependent
+  object to the object that is dynamically loaded by R. This means
+  that each user does not have to set the value of the
+  =LD_LIBRARY_PATH= (or equivalent) environment variable, but that the
+  secondary object is automatically resolved. Another example is when
+  a package installs support files that are required at run time, and
+  their location is substituted into an R data structure at
+  installation time. (This happens with the Java Archive files in the
+  SJava package.) The names of the top-level library directory (i.e.,
+  specifiable via the =‘-l’= argument) and the directory of the
+  package itself are made available to the installation scripts via
+  the two shell/environment variables =R_LIBRARY_DIR= and
+  =R_PACKAGE_DIR=. Additionally, the name of the package
+  (e.g. =‘survival’= or =‘MASS’=) being installed is available from
+  the environment variable =R_PACKAGE_NAME=. (Currently the value of
+  =R_PACKAGE_DIR= is always =${R_LIBRARY_DIR}/${R_ PACKAGE_NAME}=, but
+  this used not to be the case when versioned installs were
+  allowed. Its main use is in =‘configure.win’= scripts for the
+  installation path of external software’s DLLs.)
+  #+END_QUOTE
+ 
+  we're going to have to do a =configure.ac=, which does
+  =AC_SUBST(...)= and =AC_CONFIG_FILES([...R])= to formalize
+  =CLASSPATH=, =JAVA_LIBRARY_PATH=; as well as some kind of shell
+  script to invoke =R= properly, which formalizes =LD_LIBRARY_PATH=.
+
+  we're going to have to abuse =src= to build =RInterfaceProxy.jar=;
+  let's do it over =Makefile=, possibly via =configure.ac= (and not,
+  say, =ant=).
+
 * DONE pass values to interface-methods
   CLOSED: [2011-04-04 Mon 03:30]
   - CLOSING NOTE [2011-04-04 Mon 03:30] \\
