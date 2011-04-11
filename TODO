@@ -1,5 +1,15 @@
 # -*- org -*-
-* TODO R package
+* TODO use proper namespacing
+  =com/gene/rJavax=, etc.
+* TODO switch to ant instead of Makefiles
+  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE R package
+  CLOSED: [2011-04-11 Mon 05:50]
+  - CLOSING NOTE [2011-04-11 Mon 05:51] \\
+    used =helloJavaWorld= as prototype; abusing the top-level =src=
+    directory for Java: questionable? also, we're generating rJava.jar
+    during installation, whereas =helloJavaWorld= and co. just check
+    in the binary jars.
   this seems vaguely relevant, but i'm not sure how (from [[http.://cran.r-project.org/doc/manuals/R-exts.pdf][R-exts.pdf]]):
 
   #+BEGIN_QUOTE
