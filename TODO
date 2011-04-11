@@ -1,4 +1,26 @@
 # -*- org -*-
+* TODO implementations as reference classes instead of lists
+  from [[http://stat.ethz.ch/R-manual/R-devel/library/methods/html/refClass.html][refClass]]:
+
+  #+BEGIN_QUOTE
+  Fields may be modified in a method by using the non-local assignment
+  operator, =<<-=.
+
+  The call to setRefClass defines the specified class and returns a
+  “generator” object for that class.
+
+  - =$new(...)= :: This method is equivalent to the function new with
+                   the class name as an argument. The =...= arguments
+                   are values for the named fields. If the class has a
+                   method defined for =$initialize()=, this method
+                   will be called once the reference object has been
+                   created.
+                   
+                   The default method for =$initialize()= is
+                   equivalent to invoking the method
+                   =$initFields(...)= with named fields as its
+                   arguments.
+  #+END_QUOTE
 * TODO use proper namespacing
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
