@@ -407,3 +407,92 @@
    override initialization: can take arguments, fields.
 
    fancy: custom initializers.
+** Mon Apr 11 10:13:54 PDT 2011
+   implement not only interfaces but classes; worry about fields
+   later; methods wrappers for .jcall, etc.; initialize()
+   constructor. methods on the reference class just R functions
+   themselves?
+
+   right now: list, expect them to be called from java; instead of
+   calling java to call R; instead: use functions directly as methods;
+   for calling things from R, short circuit it by calling the
+   implementation methods directly; pass it directly to the
+   =setRefClass= call (=methods=); once it's =setRefClass=, semantics
+   are somewhat different (not necessarily drop-in); if implementing
+   java interface, want to use those features anyway; if something is
+   called from java, will it work if it uses these reference class
+   features; right enclosure; they parse methods with codetools; need
+   to make sure: same function; enclosing environment hasn't
+   changed. need to make sure that the function called from java is
+   the same function as called directly; people want the ability to be
+   able to say, this, self, and have things work correctly; if were
+   not doing this, self; pass methods into setRefClass and get
+   something corresponding to that function back out; own version of
+   the method enclosed in that instance environment;
+
+   when i implement this: closures? need some kind of mutable
+   state. how would that work with a single closure per class; static
+   state vs. class-level state; support instance-level state;
+
+   setRefClass: implement function? proxy refClass for classes *or*
+   interfaces; reference classes for extensions of java; c++:
+   extensions of c++ classes in R, c++ cannot see the R
+   implementations; what we'd like to do: at least at the interface
+   level, have java see the R implementation;
+
+   should they be writing code in the reference class style? (pretty
+   compatible with java, etc.)
+
+   discrete steps: 1. setRefClass, 2. implements interface; needs to
+   be able to get the methods enclosed in the instance; different set
+   of functions for every instance; create a new invocation handler
+   instance in initialize(); setJavaReferenceClass? given a java
+   class, create corresponding reference class; rcpp: allows them to
+   add on new methods; setRefClass call; that's where the
+   introspection comes in in initialization(); interfaces only
+   supported through java Proxy; currently only interfaces; later
+   class; give setJavaReferenceClass a list of character vectors
+   naming all the interfaces you want to implement; for now, single
+   interface; in the multiple interface case: methods() would be a
+   list of lists; conflicting method names in multiple interface
+   implementation; setJavaReferenceClass is a wrapper around
+   setRefClass: given name of java class or opaque class object,
+   introspect it, come up with a bunch of stubs that delegate up
+   through the rjava interface; setJavaImplementation; if the class
+   doesn't exist yet; if we want it to mimic java, how far do you go?;
+   at least need to represent all the parent classes of a given
+   object; represent e.g. java.lang.Object as reference class when
+   reference-classing java.lang.reflect.Proxy;
+
+   just make it work with the interfaces we've implemented? rJava
+   already similar to reference classes ($, etc.): what is the
+   advantages to these proxies? rcpp, same playing field, etc.;
+   correct about it: lot of overhead; trying to mimic rcpp, write cpp
+   in package, want to be able to call them from R via reference
+   classes; qt cpp stuff released in about a month through
+   bioconductor; not much point to a reference class if not
+   bidirectional; decide to what extent we're going to do the mapping;
+   introspecting entire class hierarchy not practical;
+
+   reference class stuff for this interface stuff;
+   setJavaInterfaceImplementation: name of interface, list of methods
+   (weren't going to do short-circuiting);
+
+   setJavaInterfaceImplementation: name, list of methods; from name,
+   look up ref class; inherit from that class; for implementations:
+   pass to java, inherited proxy methods, into location handler; other
+   way: short circuit; override methods with our implementations; call
+   these things directly from within R; during initialize methods, go
+   in get methods out, pass them on to invocation handler; setJII:
+   calls setRefClass, initialize(): get the methods out of the
+   instance, take them and pass them to the constructor of the proxy;
+   make it so that we can get from reference class object the
+   corresponding java object (jObjRef); every one of these guys should
+   inherit from some base references class that has a method to access
+   the jObjRef; somehow access generator object; test: short-circuited
+   call from within R, long route through java; translate between two
+   representations; 
+
+   all of our reference classes inherit from jObjRef; has the
+   necessary slots; pass that as any java interface transparently;
+   reference class inherit from S4; 
