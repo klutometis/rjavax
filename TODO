@@ -21,10 +21,43 @@
                    =$initFields(...)= with named fields as its
                    arguments.
   #+END_QUOTE
+
+  see [[http://dirk.eddelbuettel.com/blog/2010/10/15/][dirk's blog]]:
+
+  #+BEGIN_QUOTE
+  new =Rcpp::Reference= class, that allows internal manipulation of R
+  2.12.0 reference classes. The class exposes a constructor that takes
+  the name of the target reference class and a field(string) method
+  that implements the proxy pattern to get/set reference fields using
+  callbacks to the R operators =$= and =$<-= in order to preserve the
+  R-level encapsulation.
+  #+END_QUOTE
 * TODO use proper namespacing
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
   can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE package preamble for testing
+  CLOSED: [2011-04-13 Wed 12:38]
+  #+srcname: preamble
+  #+BEGIN_SRC R
+    library(rJava)
+    source('R/interface.R')
+    
+    .jpackage('rJavax', morePaths='.')
+    .jengine(TRUE)
+    
+  #+END_SRC
+* DONE reference class inheriting from =jobjRef=
+  CLOSED: [2011-04-13 Wed 12:38]
+  #+BEGIN_SRC R :noweb yes :tangle test-inheritance.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<preamble>>
+    
+    ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    
+    ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+           jclass='java/lang/Object')
+    
+  #+END_SRC
 * DONE R package
   CLOSED: [2011-04-11 Mon 05:50]
   - CLOSING NOTE [2011-04-11 Mon 05:51] \\
