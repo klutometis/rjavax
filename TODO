@@ -11,7 +11,7 @@
                   methods=list(initialize=function() {
                     proxy <- new(J('RInterfaceProxy'),
                                  interface,
-                                 to.hashmap(implementations))
+                                 to.hashmap(methods))
                     jobj <<- proxy$jobj
                     jclass <<- proxy$jclass
                   }))
