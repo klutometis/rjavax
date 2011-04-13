@@ -579,3 +579,7 @@
 ** Wed Apr 13 14:09:14 PDT 2011
    =initialize()= calls constructor on java object; just copy the
    =jobj= and the =jclass= slots.
+
+   =com.gene.bioinfo.R=
+
+   mimic what john did with Rcpp; 
