@@ -5,19 +5,18 @@
     
     library(rJavax)
     
-    setJavaInterfaceImplementation <- function(interface, object)
+    setJavaInterfaceImplementation <- function(implementation, interface)
       setRefClass('jobjInterfaceRef',
-                  contains=c(object$className, 'jobjRef'),
-                  methods=list(initialize=function()
-                    jobj <<- new('jobjRef',
-                                 jobj=.External('RcreateObject',
-                                   'RInterfaceProxy',
-                                   interface,
-                                   to.hashmap(methods),
-                                   PACKAGE='rJava'),
-                                 jclass='RInterfaceProxy')))
+                  contains=c(implementation, 'jobjRef'),
+                  methods=list(initialize=function() {
+                    proxy <- new(J('RInterfaceProxy'),
+                                 interface,
+                                 to.hashmap(implementations))
+                    jobj <<- proxy$jobj
+                    jclass <<- proxy$jclass
+                  }))
     
-    test <- setRefClass('testInterface',
+    test <- setRefClass('testInterfaceImplementation',
                         methods=list(mogrify=function(string)
                           paste(string, 'mogrified', sep='-'),
                           tetradicSum=function(w, x, y, z)
@@ -25,9 +24,11 @@
                           multiplyInts=function(x, y)
                           as.integer(x * y)))
     
-    ti <- setJavaInterfaceImplementation('TestInterface', test)
+    ti <- setJavaInterfaceImplementation('testInterfaceImplementation',
+                                         'TestInterface')
     
     ti$new()
+    
   #+END_SRC  
 
   example of =RcreateObject= on =RInterfaceProxy=:
@@ -575,3 +576,6 @@
    all of our reference classes inherit from jObjRef; has the
    necessary slots; pass that as any java interface transparently;
    reference class inherit from S4; 
+** Wed Apr 13 14:09:14 PDT 2011
+   =initialize()= calls constructor on java object; just copy the
+   =jobj= and the =jclass= slots.
