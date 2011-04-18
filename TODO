@@ -603,3 +603,17 @@
    =com.gene.bioinfo.R=
 
    mimic what john did with Rcpp; 
+** Mon Apr 18 10:10:59 PDT 2011
+   every java interface or class: has a reference class version of it;
+   signify instance, every java superclass; stub java implementations
+   that merely call the java methods, except where overridden;
+   contains: names of classes; all the parent-implementing R classes
+   as a flat list in the ;
+
+   contains: all the interfaces that it implements and its parent
+   implementations; trace the interfaces up to parentlessness;
+
+   fields support active bindings; construct an active binding;
+   substitute on the body; jobjRef, subinterface, multiple interface.
+
+   substitute outside the function definition.
