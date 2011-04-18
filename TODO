@@ -1,53 +1,50 @@
 # -*- org -*-
+#+TITLE: Only a C++ hacker could have come up with Reference Classes.
 * TODO =setJavaInterfaceImplementation=
-  #+BEGIN_SRC R :noweb yes :tangle test-jii.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+  because of the limitations of closures and refclasses, have to
+  repeat the implementation in both =setJII= *and* the constructor;
+  for other opaque reasons, cannot both subclass =jobjRef= and specify
+  an initializer.
+  
+  #+BEGIN_SRC R :noweb yes :tangle test-short-circuit.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     options(morePaths='tests')
     
     library(rJavax)
     
-    setJavaInterfaceImplementation <- function(implementation, interface) {
-      interfaceRef <-
-        setRefClass('jobjInterfaceRef',
-                    contains=c('jobjRef', implementation),
-                    ## This breaks if I so much as define an initialize
-                    ## method and list jobjRef as a superclass; in fact, the
-                    ## code is never looked at:
-                    ## 
-                    ## Error in .jcall("RJavaTools", "Z", "hasField",
-                    ## .jcast(x, "java/lang/Object"), :
-                    ## 
-                    ## method hasField with signature (Ljava/lang/String;)Z
-                    ## not found
-                    ## 
-                    ## Calls: <Anonymous> ... initialize -> $ -> $ ->
-                    ## hasField -> .jcall -> .External
+    setJavaInterfaceImplementation <- function(implementation)
+      setRefClass('jobjInterfaceRef',
+                  contains=implementation$className,
+                  fields='proxy',
+                  methods=list(initialize=function(interface,
+                                 implementation,
+                                 ...) {
+                    implementations <-
+                      structure(Map(function(name) {
+                        get(name, implementation$def@refMethods)
+                      },
+                                    implementation$methods()),
+                                names=implementation$methods())
+                    proxy <<-
+                      interfaceProxy(interface, implementations)
+                    .self
+                  }))
     
-                    ## methods=list(initialize=function(...) {
-                    ##   jobj <<- .External('RcreateObject',
-                    ##                      'RInterfaceProxy',
-                    ##                      interface,
-                    ##                      to.hashmap(implementation))
-                    ##   jclass <<- 'RInterfaceProxy'
-                    ## })
-                    )
-      ir <- interfaceRef$new();
-      ir@jobj <- new(J('RInterfaceProxy'), interface, to.hashmap(implementation))@jobj
-      ir@jclass <- 'RInterfaceProxy'
-      ir
-    }
+    testInterfaceImplementation <-
+      setRefClass('testInterfaceImplementation',
+                  methods=list(mogrify=function(string)
+                    paste(string, 'mogrified', sep='-'),
+                    tetradicSum=function(w, x, y, z)
+                    sum(w, x, y, z),
+                    multiplyInts=function(x, y)
+                    as.integer(x * y)))
     
-    test <- setRefClass('testInterfaceImplementation',
-                        methods=list(mogrify=function(string)
-                          paste(string, 'mogrified', sep='-'),
-                          tetradicSum=function(w, x, y, z)
-                          sum(w, x, y, z),
-                          multiplyInts=function(x, y)
-                          as.integer(x * y)))
+    testInterface <-
+      setJavaInterfaceImplementation(testInterfaceImplementation)
     
-    ti <- setJavaInterfaceImplementation('testInterfaceImplementation',
-                                         'TestInterface')
-    ti$new()
-    ## attributes(ti)
+    ti <- testInterface$new('TestInterface',
+                            testInterfaceImplementation)
+    
+    stopifnot(ti$mogrify('test') == ti$proxy$mogrify('test'))
     
   #+END_SRC  
 

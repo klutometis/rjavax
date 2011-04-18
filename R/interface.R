@@ -41,7 +41,7 @@ to.hashmap <- function(implementations) {
 ##' the implementation; e.g. \code{animalium()$eat(prey)}
 ##' @export
 ##' @import rJava
-interface <- function(interface, implementations)
+interfaceProxy <- function(interface, implementations)
   new(J('RInterfaceProxy'),
       interface,
-      to.hashmap(implementations))$newInstance
+      to.hashmap(implementations))$newInstance()

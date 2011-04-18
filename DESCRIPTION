@@ -1,11 +1,11 @@
 Package: rJavax
-Version: 0.1
-Title: rJava extensions
-Author: Peter Danenberg <pcd@roxygen.org>
 Maintainer: Peter Danenberg <pcd@roxygen.org>
 License: GPL-3
+Title: rJava extensions
+Author: Peter Danenberg <pcd@roxygen.org>
 Description: Support for e.g. interfaces
+SystemRequirements: Java (>= 1.5)
+Version: 0.1
 Depends: rJava
 Suggests: RUnit
-SystemRequirements: Java (>= 1.5)
 Collate: 'interface.R' 'onLoad.R'

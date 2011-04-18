@@ -1,3 +1,2 @@
-export(interface)
-export(to.hashmap)
+export(interfaceProxy)
 import(rJava)
