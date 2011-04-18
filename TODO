@@ -32,12 +32,8 @@
                     .self
                   }))
     
-    parent <- setRefClass('parentharro',
-                          methods=list(mogrify=function(string) 'harro!'))
-    
     testInterfaceImplementation <-
       setRefClass('testInterfaceImplementation',
-                  contains=parent,
                   methods=list(mogrify=function(string)
                     paste(string, 'mogrified', sep='-'),
                     tetradicSum=function(w, x, y, z)
