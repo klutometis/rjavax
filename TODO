@@ -6,6 +6,9 @@
   for other opaque reasons, cannot both subclass =jobjRef= and specify
   an initializer.
   
+  bad news, btw: =.self= and =callSuper= don't exist when calling from
+  java.
+
   #+BEGIN_SRC R :noweb yes :tangle test-short-circuit.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     options(morePaths='tests')
     
@@ -29,8 +32,12 @@
                     .self
                   }))
     
+    parent <- setRefClass('parentharro',
+                          methods=list(mogrify=function(string) 'harro!'))
+    
     testInterfaceImplementation <-
       setRefClass('testInterfaceImplementation',
+                  contains=parent,
                   methods=list(mogrify=function(string)
                     paste(string, 'mogrified', sep='-'),
                     tetradicSum=function(w, x, y, z)

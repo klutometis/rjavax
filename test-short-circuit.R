@@ -22,10 +22,16 @@ setJavaInterfaceImplementation <- function(implementation)
                 .self
               }))
 
+parent <- setRefClass('parentharro',
+                      methods=list(mogrify=function(string) 'harro!'))
+
 testInterfaceImplementation <-
   setRefClass('testInterfaceImplementation',
-              methods=list(mogrify=function(string)
-                paste(string, 'mogrified', sep='-'),
+              contains=parent,
+              methods=list(mogrify=function(string) {
+                print(callSuper('yes!'))
+                paste(string, 'mogrified', sep='-')
+              },
                 tetradicSum=function(w, x, y, z)
                 sum(w, x, y, z),
                 multiplyInts=function(x, y)
