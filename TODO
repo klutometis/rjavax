@@ -5,16 +5,36 @@
     
     library(rJavax)
     
-    setJavaInterfaceImplementation <- function(implementation, interface)
-      setRefClass('jobjInterfaceRef',
-                  contains=c(implementation, 'jobjRef'),
-                  methods=list(initialize=function() {
-                    proxy <- new(J('RInterfaceProxy'),
-                                 interface,
-                                 to.hashmap(methods))
-                    jobj <<- proxy$jobj
-                    jclass <<- proxy$jclass
-                  }))
+    setJavaInterfaceImplementation <- function(implementation, interface) {
+      interfaceRef <-
+        setRefClass('jobjInterfaceRef',
+                    contains=c('jobjRef', implementation),
+                    ## This breaks if I so much as define an initialize
+                    ## method and list jobjRef as a superclass; in fact, the
+                    ## code is never looked at:
+                    ## 
+                    ## Error in .jcall("RJavaTools", "Z", "hasField",
+                    ## .jcast(x, "java/lang/Object"), :
+                    ## 
+                    ## method hasField with signature (Ljava/lang/String;)Z
+                    ## not found
+                    ## 
+                    ## Calls: <Anonymous> ... initialize -> $ -> $ ->
+                    ## hasField -> .jcall -> .External
+    
+                    ## methods=list(initialize=function(...) {
+                    ##   jobj <<- .External('RcreateObject',
+                    ##                      'RInterfaceProxy',
+                    ##                      interface,
+                    ##                      to.hashmap(implementation))
+                    ##   jclass <<- 'RInterfaceProxy'
+                    ## })
+                    )
+      ir <- interfaceRef$new();
+      ir@jobj <- new(J('RInterfaceProxy'), interface, to.hashmap(implementation))@jobj
+      ir@jclass <- 'RInterfaceProxy'
+      ir
+    }
     
     test <- setRefClass('testInterfaceImplementation',
                         methods=list(mogrify=function(string)
@@ -26,8 +46,8 @@
     
     ti <- setJavaInterfaceImplementation('testInterfaceImplementation',
                                          'TestInterface')
-    
     ti$new()
+    ## attributes(ti)
     
   #+END_SRC  
 
