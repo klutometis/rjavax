@@ -8,9 +8,11 @@
   values.
 
   #+BEGIN_SRC java :tangle src/TestArbitraryObject.java
-    public interface TestArbitraryObject {
-    }
+    import java.util.Stack;
     
+    public interface TestArbitraryObject {
+        public Stack arbitraryObject();
+    }
   #+END_SRC
 
   #+BEGIN_SRC R :tangle test-arbitrary-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f
@@ -20,10 +22,8 @@
     .jpackage('rJavax', morePaths='src')
     .jengine(TRUE)
     
-    interface <-
-      interfaceProxy('TestArbitraryObject',
-                     list(harro=function() 'harro'))
-    
+    interfaceProxy('TestArbitraryObject',
+                   list(arbitraryObject=function() new(J('java/util/Stack'))))
   #+END_SRC
 
   this is a reasonable build one-liner, btw:
