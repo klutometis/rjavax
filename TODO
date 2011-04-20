@@ -1,5 +1,4 @@
 # -*- org -*-
-#+TITLE: Only a C++ hacker could have come up with Reference Classes.
 * TODO =getObject=
   test ~value.getObject~ à la [[simons-letter][simon's letter]]; he must be referring to
   [[http://www.rforge.net/org/docs/org/rosuda/REngine/REXPJavaReference.html][REXPJavaReference]], mustn't he: but how to get one?
@@ -37,6 +36,8 @@
   for other opaque reasons, cannot both subclass =jobjRef= and specify
   an initializer.
   
+  use michael's idea of [[substitute][substitute on the function definition]].
+
   bad news, btw: =.self= and =callSuper= don't exist when calling from
   java.
 
@@ -647,6 +648,7 @@
    fields support active bindings; construct an active binding;
    substitute on the body; jobjRef, subinterface, multiple interface.
 
+# <<substitute>>
    substitute outside the function definition.
 ** Wed Apr 20 13:08:00 PDT 2011
 # <<simons-letter>>
