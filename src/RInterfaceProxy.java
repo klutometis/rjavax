@@ -47,20 +47,24 @@ public class RInterfaceProxy {
                             add(implementation);
                             if (args != null) {
                                 for (Object arg: args) {
+                                    // This does not work:
+                                    // add(new REXPJavaReference(arg));
                                     add(REXPWrapper.wrap(arg));
                                 }
                             }
                         }
                     };
-                    REXPJavaReference value = (REXPJavaReference)
-                        implementation.getEngine()
+                    REXP value = implementation.getEngine()
                         .eval(new REXPLanguage
                               (new RList (call.toArray(new REXP[0]))),
                               null,
                               true);
-                    // NB: need to handle the case where get returns
-                    // null.
-                    return value.getObject();
+                    // I've seen a REXPNull here before; am I masking
+                    // an error, though?
+                    if (value instanceof REXPJavaReference)
+                        return ((REXPJavaReference) value).getObject();
+                    else
+                        return null;
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }

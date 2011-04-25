@@ -10,7 +10,7 @@
     import java.util.Stack;
     
     public interface TestArbitraryObject {
-        public Stack arbitraryObject();
+        public Stack stack(Stack stack);
     }
   #+END_SRC
 
@@ -25,10 +25,12 @@
     
     interface <-
       interfaceProxy('TestArbitraryObject',
-                     list(arbitraryObject=function() stack = new(J('java/util/Stack')),
+                     list(
+                          stack=function(stack) stack,
                           toString=function() 'TestArbitraryObject'))
     
-    interface$arbitraryObject()
+    interface$stack(new(J('java/util/Stack')))
+    
   #+END_SRC
 
   #+BEGIN_SRC makefile :tangle test-arbitrary-object.mk :shebang #!/usr/bin/unexpand -t 4
