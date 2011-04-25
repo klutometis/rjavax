@@ -14,21 +14,26 @@
     }
   #+END_SRC
 
+  should we abstract this ~.jinit~ prologue into a named block?
+
   #+BEGIN_SRC R :tangle test-arbitrary-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     library(rJava)
     source('R/interface.R')
     
-    .jpackage('rJavax', morePaths='src')
+    .jinit(classpath='inst/java/JRIEngine.jar:inst/java/JRI.jar:inst/java/REngine.jar:inst/java/rJavax.jar:src')
     .jengine(TRUE)
     
-    interfaceProxy('TestArbitraryObject',
-                   list(arbitraryObject=function() new(J('java/util/Stack'))))
+    interface <-
+      interfaceProxy('TestArbitraryObject',
+                     list(arbitraryObject=function() stack = new(J('java/util/Stack')),
+                          toString=function() 'TestArbitraryObject'))
+    
+    interface$arbitraryObject()
   #+END_SRC
 
-  this is a reasonable build one-liner, btw:
-
-  #+BEGIN_SRC sh
-    org-tangle TODO && make -C src testGetObject.class && java -cp src testGetObject
+  #+BEGIN_SRC makefile :tangle test-arbitrary-object.mk :shebang #!/usr/bin/unexpand -t 4
+    all:
+        make -C src all TestArbitraryObject.class && ./test-arbitrary-object.R
   #+END_SRC
 * TODO =setJavaInterfaceImplementation=
   because of the limitations of closures and refclasses, have to
@@ -135,6 +140,30 @@
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
   can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE ~ld.so.conf~
+  CLOSED: [2011-04-25 Mon 02:35]
+  i have to add at least these two directories (pointing to
+  ~libjvm.so~ and ~rJava.so~:
+
+  #+BEGIN_EXAMPLE
+  /usr/local/java/jre/lib/amd64/server/
+  /usr/local/lib64/R/library/rJava/libs
+  #+END_EXAMPLE
+* DONE ~REXPJavaReference~
+  CLOSED: [2011-04-25 Mon 02:24]
+  - CLOSING NOTE [2011-04-25 Mon 02:25] \\
+    http://www.rforge.net/JRI/files/
+  all of our jars appear to be defective.
+  
+  #+BEGIN_SRC java :tangle src/TestREXPJavaReference.java
+    import org.rosuda.REngine.REXPJavaReference;
+    
+    public class TestREXPJavaReference {
+        public static void main(String[] argv) {
+        }
+    }
+    
+  #+END_SRC
 * DONE package preamble for testing
   CLOSED: [2011-04-13 Wed 12:38]
   #+srcname: preamble
