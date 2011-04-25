@@ -745,3 +745,13 @@
    reference classes; now integrated with S4 dispatch; whereas before,
    attach to =jobjRef=; like Rcpp with a limited subset of
    bidirectionality: interfaces.
+** Mon Apr 25 10:10:01 PDT 2011
+   functions modified and closed so that refclass methods see this and
+   super; ~.self~ and ~callSuper~ cease to exist; because we call the
+   function directly; call it through the reference class; create the
+   new object, instantiate the reference class; construct instance
+   first; get ~.self~ and ~callSuper~ out of the initialize
+   environment; rather than get from the implementation, just get from
+   the environment; print out what the enclosing environment during
+   and after initialization; slightly promiscuous: call it from java
+   on the reference class, as opposed to the naked methods; 
