@@ -25,8 +25,7 @@
     
     interface <-
       interfaceProxy('TestArbitraryObject',
-                     list(
-                          stack=function(stack) stack,
+                     list(stack=function(stack) stack,
                           toString=function() 'TestArbitraryObject'))
     
     interface$stack(new(J('java/util/Stack')))

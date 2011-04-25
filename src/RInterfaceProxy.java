@@ -47,9 +47,7 @@ public class RInterfaceProxy {
                             add(implementation);
                             if (args != null) {
                                 for (Object arg: args) {
-                                    // This does not work:
-                                    // add(new REXPJavaReference(arg));
-                                    add(REXPWrapper.wrap(arg));
+                                    add(new REXPJavaReference(arg));
                                 }
                             }
                         }
