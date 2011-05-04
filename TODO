@@ -1,5 +1,81 @@
 # -*- org -*-
-* TODO call the result of an R function
+* TODO =setJavaInterfaceImplementation=
+# <<setJavaInterfaceImplementation>>
+  because of the limitations of closures and refclasses, have to
+  repeat the implementation in both =setJII= *and* the constructor;
+  for other opaque reasons, cannot both subclass =jobjRef= and specify
+  an initializer.
+  
+  use michael's idea of [[substitute][substitute on the function definition]].
+
+  bad news, btw: =.self= and =callSuper= don't exist when calling from
+  java.
+
+  #+BEGIN_SRC R :noweb yes :tangle test-short-circuit.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    options(morePaths='tests')
+    
+    library(rJavax)
+    
+    setJavaInterfaceImplementation <- function(implementation)
+      setRefClass('jobjInterfaceRef',
+                  contains=implementation$className,
+                  fields='proxy',
+                  methods=list(initialize=function(interface,
+                                 implementation,
+                                 ...) {
+                    implementations <-
+                      structure(Map(function(name) {
+                        get(name, implementation$def@refMethods)
+                      },
+                                    implementation$methods()),
+                                names=implementation$methods())
+                    proxy <<-
+                      interfaceProxy(interface, implementations)
+                    .self
+                  }))
+    
+    testInterfaceImplementation <-
+      setRefClass('testInterfaceImplementation',
+                  methods=list(mogrify=function(string)
+                    paste(string, 'mogrified', sep='-'),
+                    tetradicSum=function(w, x, y, z)
+                    sum(w, x, y, z),
+                    multiplyInts=function(x, y)
+                    as.integer(x * y)))
+    
+    testInterface <-
+      setJavaInterfaceImplementation(testInterfaceImplementation)
+    
+    ti <- testInterface$new('TestInterface',
+                            testInterfaceImplementation)
+    
+    stopifnot(ti$mogrify('test') == ti$proxy$mogrify('test'))
+    
+  #+END_SRC  
+
+  example of =RcreateObject= on =RInterfaceProxy=:
+
+  #+BEGIN_SRC R
+    new('jobjRef',
+        jobj=.External('RcreateObject',
+          'RInterfaceProxy',
+          'TestInterface',
+          to.hashmap(list(mogrify=function(string)
+                          paste(string, 'mogrified', sep='-'),
+                          tetradicSum=function(w, x, y, z)
+                          sum(w, x, y, z),
+                          multiplyInts=function(x, y)
+                          as.integer(x * y)))),
+        jclass='RInterfaceProxy')$newInstance()$tetradicSum(1, 2, 3, 4)
+  #+END_SRC
+* TODO use proper namespacing
+  =com/gene/rJavax=, etc.
+* TODO switch to ant instead of Makefiles
+  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE call the result of an R function
+  CLOSED: [2011-05-04 Wed 03:00]
+  - CLOSING NOTE [2011-05-04 Wed 03:00] \\
+    Done even for the reference class case
   #+BEGIN_SRC java :tangle src/TestCallableReturn.java
     import java.lang.reflect.InvocationHandler;
     import java.lang.reflect.Method;
@@ -106,7 +182,8 @@
   ~REXPList~, neither.
 
   Well, regardless: we can reference ~.self~.
-* TODO =getObject=
+* DONE =getObject=
+  CLOSED: [2011-05-04 Wed 03:00]
   test ~value.getObject~ à la [[simons-letter][simon's letter]]; he must be referring to
   [[http://www.rforge.net/org/docs/org/rosuda/REngine/REXPJavaReference.html][REXPJavaReference]], mustn't he: but how to get one?
 
@@ -143,111 +220,6 @@
     all:
         make -C src all TestArbitraryObject.class && ./test-arbitrary-object.R
   #+END_SRC
-* TODO =setJavaInterfaceImplementation=
-  because of the limitations of closures and refclasses, have to
-  repeat the implementation in both =setJII= *and* the constructor;
-  for other opaque reasons, cannot both subclass =jobjRef= and specify
-  an initializer.
-  
-  use michael's idea of [[substitute][substitute on the function definition]].
-
-  bad news, btw: =.self= and =callSuper= don't exist when calling from
-  java.
-
-  #+BEGIN_SRC R :noweb yes :tangle test-short-circuit.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    options(morePaths='tests')
-    
-    library(rJavax)
-    
-    setJavaInterfaceImplementation <- function(implementation)
-      setRefClass('jobjInterfaceRef',
-                  contains=implementation$className,
-                  fields='proxy',
-                  methods=list(initialize=function(interface,
-                                 implementation,
-                                 ...) {
-                    implementations <-
-                      structure(Map(function(name) {
-                        get(name, implementation$def@refMethods)
-                      },
-                                    implementation$methods()),
-                                names=implementation$methods())
-                    proxy <<-
-                      interfaceProxy(interface, implementations)
-                    .self
-                  }))
-    
-    testInterfaceImplementation <-
-      setRefClass('testInterfaceImplementation',
-                  methods=list(mogrify=function(string)
-                    paste(string, 'mogrified', sep='-'),
-                    tetradicSum=function(w, x, y, z)
-                    sum(w, x, y, z),
-                    multiplyInts=function(x, y)
-                    as.integer(x * y)))
-    
-    testInterface <-
-      setJavaInterfaceImplementation(testInterfaceImplementation)
-    
-    ti <- testInterface$new('TestInterface',
-                            testInterfaceImplementation)
-    
-    stopifnot(ti$mogrify('test') == ti$proxy$mogrify('test'))
-    
-  #+END_SRC  
-
-  example of =RcreateObject= on =RInterfaceProxy=:
-
-  #+BEGIN_SRC R
-    new('jobjRef',
-        jobj=.External('RcreateObject',
-          'RInterfaceProxy',
-          'TestInterface',
-          to.hashmap(list(mogrify=function(string)
-                          paste(string, 'mogrified', sep='-'),
-                          tetradicSum=function(w, x, y, z)
-                          sum(w, x, y, z),
-                          multiplyInts=function(x, y)
-                          as.integer(x * y)))),
-        jclass='RInterfaceProxy')$newInstance()$tetradicSum(1, 2, 3, 4)
-  #+END_SRC
-* TODO implementations as reference classes instead of lists
-  from [[http://stat.ethz.ch/R-manual/R-devel/library/methods/html/refClass.html][refClass]]:
-
-  #+BEGIN_QUOTE
-  Fields may be modified in a method by using the non-local assignment
-  operator, =<<-=.
-
-  The call to setRefClass defines the specified class and returns a
-  “generator” object for that class.
-
-  - =$new(...)= :: This method is equivalent to the function new with
-                   the class name as an argument. The =...= arguments
-                   are values for the named fields. If the class has a
-                   method defined for =$initialize()=, this method
-                   will be called once the reference object has been
-                   created.
-                   
-                   The default method for =$initialize()= is
-                   equivalent to invoking the method
-                   =$initFields(...)= with named fields as its
-                   arguments.
-  #+END_QUOTE
-
-  see [[http://dirk.eddelbuettel.com/blog/2010/10/15/][dirk's blog]]:
-
-  #+BEGIN_QUOTE
-  new =Rcpp::Reference= class, that allows internal manipulation of R
-  2.12.0 reference classes. The class exposes a constructor that takes
-  the name of the target reference class and a field(string) method
-  that implements the proxy pattern to get/set reference fields using
-  callbacks to the R operators =$= and =$<-= in order to preserve the
-  R-level encapsulation.
-  #+END_QUOTE
-* TODO use proper namespacing
-  =com/gene/rJavax=, etc.
-* TODO switch to ant instead of Makefiles
-  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
 * DONE ~ld.so.conf~
   CLOSED: [2011-04-25 Mon 02:35]
   i have to add at least these two directories (pointing to
@@ -623,6 +595,42 @@
         }
     }
   #+END_SRC
+* CANCELED implementations as reference classes instead of lists
+  CLOSED: [2011-05-04 Wed 03:01]
+  - CLOSING NOTE [2011-05-04 Wed 03:01] \\
+    See [[setJavaInterfaceImplementation]].
+  from [[http://stat.ethz.ch/R-manual/R-devel/library/methods/html/refClass.html][refClass]]:
+
+  #+BEGIN_QUOTE
+  Fields may be modified in a method by using the non-local assignment
+  operator, =<<-=.
+
+  The call to setRefClass defines the specified class and returns a
+  “generator” object for that class.
+
+  - =$new(...)= :: This method is equivalent to the function new with
+                   the class name as an argument. The =...= arguments
+                   are values for the named fields. If the class has a
+                   method defined for =$initialize()=, this method
+                   will be called once the reference object has been
+                   created.
+                   
+                   The default method for =$initialize()= is
+                   equivalent to invoking the method
+                   =$initFields(...)= with named fields as its
+                   arguments.
+  #+END_QUOTE
+
+  see [[http://dirk.eddelbuettel.com/blog/2010/10/15/][dirk's blog]]:
+
+  #+BEGIN_QUOTE
+  new =Rcpp::Reference= class, that allows internal manipulation of R
+  2.12.0 reference classes. The class exposes a constructor that takes
+  the name of the target reference class and a field(string) method
+  that implements the proxy pattern to get/set reference fields using
+  callbacks to the R operators =$= and =$<-= in order to preserve the
+  R-level encapsulation.
+  #+END_QUOTE
 * Notes
 ** Mon Mar 28 10:50:13 PDT 2011
 # <<notes-2011-03-28>>
