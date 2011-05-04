@@ -855,3 +855,7 @@
    the environment; print out what the enclosing environment during
    and after initialization; slightly promiscuous: call it from java
    on the reference class, as opposed to the naked methods; 
+** Wed May  4 14:03:29 PDT 2011
+   bioconductor conference; poster-worthy stuff; get the
+   proxy-object-class working; integrated into a nice package; IGB by
+   the end of the month.
