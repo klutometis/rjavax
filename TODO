@@ -14,29 +14,53 @@
     import org.rosuda.REngine.REXP;
     import org.rosuda.REngine.REXPDouble;
     import org.rosuda.REngine.REXPInteger;
+    import org.rosuda.REngine.REXPEnvironment;
     import org.rosuda.REngine.REXPFactor;
     import org.rosuda.REngine.REXPLanguage;
     import org.rosuda.REngine.REXPList;
     import org.rosuda.REngine.REXPRaw;
     import org.rosuda.REngine.REXPReference;
     import org.rosuda.REngine.REXPString;
+    import org.rosuda.REngine.REXPUnknown;
     import org.rosuda.REngine.REXPWrapper;
     import org.rosuda.REngine.REXPJavaReference;
     import org.rosuda.REngine.JRI.JRIEngine;
     
     public class TestCallableReturn {
-        public static void test(REXPReference method) {
+        public static void test(REXPReference dollars,
+                                REXPReference refClass,
+                                String method) {
             try {
-                REXP newMethod = method.getEngine()
+                // We can also get at the method followingly; but we run
+                // into the problem that it is not a REXPReference and
+                // therefore cannot, apparently, be evaluated:
+                // 
+                // System.out.println(((REXPEnvironment) refClass.getAttribute(".xData"))
+                //                    .get("test"));
+    
+                REXPReference refClassMethod = (REXPReference)
+                    ((REXPJavaReference)
+                     ((REXPReference) dollars).getEngine()
+                     .eval(new REXPLanguage
+                           (new RList(new REXP[] { dollars,
+                                                   refClass,
+                                                   new REXPString(method) })),
+                           null,
+                           true))
+                    .getObject();
+    
+                REXP value = refClassMethod.getEngine()
                     .eval(new REXPLanguage
-                          (new RList(new REXP[] { method })),
+                          (new RList(new REXP[] { refClassMethod })),
                           null,
                           true);
-                REXP value = method.getEngine()
-                    .eval(new REXPLanguage
-                          (new RList(new REXP[] { (REXP) ((REXPJavaReference) newMethod).getObject() })),
-                          null,
-                          true);
+    
+                // Would be nice if we could actually extract callable
+                // methods this way.
+                assert ((REXPUnknown)
+                        ((REXPEnvironment)
+                         value.getAttribute(".xData")).get("test")).getType()
+                    == 3;
             } catch (Throwable e) {
                 e.printStackTrace();
             }
@@ -51,10 +75,16 @@
     .jinit(classpath='inst/java/JRIEngine.jar:inst/java/JRI.jar:inst/java/REngine.jar:inst/java/rJavax.jar:src')
     .jengine(TRUE)
     
-    return.callable <- function()
-      toJava(function() 2)
+    dollarsToJava <- function(refClass, method)
+      toJava(do.call(`$`, list(refClass, method)))
     
-    J('TestCallableReturn')$test(toJava(return.callable))
+    testClass <- setRefClass('testClass',
+                             ## We can refer to .self even in Java!
+                             methods=list(test=function() .self))
+    
+    J('TestCallableReturn')$test(toJava(dollarsToJava),
+                                 toJava(testClass$new()),
+                                 'test')
     
   #+END_SRC
 
@@ -65,6 +95,17 @@
 
   #+END_SRC
   
+  [[http://www.rforge.net/org/docs/org/rosuda/REngine/REXPEnvironment.html][REXPEnvironment]]s are like REXPReferences, btw; so we may not need to
+  ~toJava~ everything? Instead of calling ~$~, it looks like we may be
+  able to do ~REXPReference.get~. Oh: but we have that whole ~toJava~
+  business; should we override ~$~? But we want the short-circuit
+  case.
+
+  Also, reference classes don't appear to come back as environments;
+  but as lists instead (with ~.xData~, etc.). Nope; not ~RList~ nor
+  ~REXPList~, neither.
+
+  Well, regardless: we can reference ~.self~.
 * TODO =getObject=
   test ~value.getObject~ à la [[simons-letter][simon's letter]]; he must be referring to
   [[http://www.rforge.net/org/docs/org/rosuda/REngine/REXPJavaReference.html][REXPJavaReference]], mustn't he: but how to get one?
