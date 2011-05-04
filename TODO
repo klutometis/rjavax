@@ -1,4 +1,70 @@
 # -*- org -*-
+* TODO call the result of an R function
+  #+BEGIN_SRC java :tangle src/TestCallableReturn.java
+    import java.lang.reflect.InvocationHandler;
+    import java.lang.reflect.Method;
+    import java.lang.reflect.Proxy;
+    import java.util.ArrayList;
+    import java.util.HashMap;
+    import java.util.Map;
+    import java.util.Set;
+    
+    import org.rosuda.REngine.RList;
+    import org.rosuda.REngine.REngine;
+    import org.rosuda.REngine.REXP;
+    import org.rosuda.REngine.REXPDouble;
+    import org.rosuda.REngine.REXPInteger;
+    import org.rosuda.REngine.REXPFactor;
+    import org.rosuda.REngine.REXPLanguage;
+    import org.rosuda.REngine.REXPList;
+    import org.rosuda.REngine.REXPRaw;
+    import org.rosuda.REngine.REXPReference;
+    import org.rosuda.REngine.REXPString;
+    import org.rosuda.REngine.REXPWrapper;
+    import org.rosuda.REngine.REXPJavaReference;
+    import org.rosuda.REngine.JRI.JRIEngine;
+    
+    public class TestCallableReturn {
+        public static void test(REXPReference method) {
+            try {
+                REXP newMethod = method.getEngine()
+                    .eval(new REXPLanguage
+                          (new RList(new REXP[] { method })),
+                          null,
+                          true);
+                REXP value = method.getEngine()
+                    .eval(new REXPLanguage
+                          (new RList(new REXP[] { (REXP) ((REXPJavaReference) newMethod).getObject() })),
+                          null,
+                          true);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle test-callable-return.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    
+    .jinit(classpath='inst/java/JRIEngine.jar:inst/java/JRI.jar:inst/java/REngine.jar:inst/java/rJavax.jar:src')
+    .jengine(TRUE)
+    
+    return.callable <- function()
+      toJava(function() 2)
+    
+    J('TestCallableReturn')$test(toJava(return.callable))
+    
+  #+END_SRC
+
+  #+BEGIN_SRC makefile :tangle test-callable-return.mk :shebang #!/usr/bin/unexpand -t 4
+    all:
+        make -C src all TestCallableReturn.class &&
+        ./test-callable-return.R
+
+  #+END_SRC
+  
 * TODO =getObject=
   test ~value.getObject~ à la [[simons-letter][simon's letter]]; he must be referring to
   [[http://www.rforge.net/org/docs/org/rosuda/REngine/REXPJavaReference.html][REXPJavaReference]], mustn't he: but how to get one?
