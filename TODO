@@ -1,4 +1,17 @@
 # -*- org -*-
+* TODO dollars
+  signature: ~RInterfaceProxy(String interfaceName, REXPReference
+  refClass, REXPReference dollars)~; in ~invoke(Object proxy, Method
+  method, final Object[] args)~, ~method.getName()~ takes the place of
+  ~String method~ in ~TestCallableReturn.test~.
+
+  ~setJavaInterfaceImplemntation(interface, implementation)~ (using
+  ~substitute~); when instantiating ~RInterfaceProxy~, it uses
+  ~dollarsToJava~. is there any way we can pull ~dollarsToJava~ out of
+  the package/environment?
+
+  it's merely convenient, of course, to pass it in; can we justify it
+  by abstracting the accessor? don't think so.
 * TODO =setJavaInterfaceImplementation=
 # <<setJavaInterfaceImplementation>>
   because of the limitations of closures and refclasses, have to
