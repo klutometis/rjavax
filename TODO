@@ -30,14 +30,8 @@
                   contains=implementation$className,
                   fields='proxy',
                   methods=list(initialize=eval(substitute(function() {
-                    implementations <-
-                      structure(Map(function(name) {
-                        get(name, implementation$def@refMethods)
-                      },
-                                    implementation$methods()),
-                                names=implementation$methods())
                     proxy <<-
-                      testInterfaceProxy(interface, implementations)
+                      testInterfaceProxy(interface, implementation$new())
                     .self
                   },
                                  list(interface=interface,
@@ -45,7 +39,8 @@
     
     testInterfaceImplementation <-
       setRefClass('testInterfaceImplementation',
-                  methods=list(test=function() "hello"))
+                  methods=list(salute=function(salutandum)
+                    sprintf('Salve, %s!', salutandum)))
     
     testInterface <-
       setJavaInterfaceImplementation('TestInterfaceProxyInterface',
@@ -53,8 +48,7 @@
     
     ti <- testInterface$new()
     
-    str(ti$proxy$test())
-    ## stopifnot(ti$mogrify('test') == ti$proxy$mogrify('test'))
+    stopifnot(ti$salute('terra') == ti$proxy$salute('terra'))
     
   #+END_SRC
   
@@ -87,7 +81,7 @@
         REXPReference dollars;
         REXPReference refClass;
         InvocationHandler handler;
-        static HashMap<Class, Method> translations;
+        static HashMap<Class, Method> translators;
     
         public TestInterfaceProxy(String interfaceName,
                                   REXPReference dollars,
@@ -100,7 +94,7 @@
     
         static {
             try {
-                translations =
+                translators =
                     new HashMap<Class, Method>() {
                     {
                         put(REXPString.class,
@@ -128,51 +122,54 @@
                                      Method method,
                                      final Object[] args) {
                     try {
-                        REXPReference refClassMethod = (REXPReference)
+                        final REXPReference refClassMethod = (REXPReference)
                             ((REXPJavaReference)
                              ((REXPReference) dollars).getEngine()
                              .eval(new REXPLanguage
-                                   (new RList(new REXP[] { dollars,
-                                                           refClass,
-                                                           new REXPString(method.getName()) })),
+                                   (new RList(new REXP[] {
+                                           dollars,
+                                           refClass,
+                                           new REXPString(method.getName())
+                                       })),
                                    null,
                                    true))
                             .getObject();
     
+                        ArrayList<REXP> call = new ArrayList<REXP>() {
+                            {
+                                add(refClassMethod);
+                                if (args != null) {
+                                    for (Object arg: args) {
+                                        REXP wrappedArg = REXPWrapper.wrap(arg);
+                                        if (wrappedArg != null)
+                                            add(wrappedArg);
+                                        else
+                                            // Last-ditched attempt to add
+                                            // a non-scalar
+                                            add(new REXPJavaReference(arg));
+                                    }
+                                }
+                            }
+                        };
+    
                         REXP value = refClassMethod.getEngine()
                             .eval(new REXPLanguage
-                                  (new RList(new REXP[] { refClassMethod })),
+                                  (new RList(
+                                             call.toArray(new REXP[0])
+                                             // new REXP[] { refClassMethod }
+                                             )),
                                   null,
                                   true);
-                        // final REXPReference implementation =
-                        //     TestInterfaceProxy.this.implementations
-                        //     .get(method.getName());
-                        // ArrayList<REXP> call = new ArrayList<REXP>() {
-                        //     {
-                        //         add(implementation);
-                        //         if (args != null) {
-                        //             for (Object arg: args) {
-                        //                 add(new REXPJavaReference(arg));
-                        //             }
-                        //         }
-                        //     }
-                        // };
-                        // REXP value = implementation.getEngine()
-                        //     .eval(new REXPLanguage
-                        //           (new RList (call.toArray(new REXP[0]))),
-                        //           null,
-                        //           true);
-                        // I've seen a REXPNull here before; am I masking
-                        // an error, though?
+    
                         if (value instanceof REXPJavaReference)
                             return ((REXPJavaReference) value).getObject();
                         else {
-                            Method translation = TestInterfaceProxy.translations
+                            Method translator = TestInterfaceProxy.translators
                                 .get(value.getClass());
-                            if (translation == null)
-                                return null;
+                            if (translator != null)
+                                return translator.invoke(value);
                             else
-                                return translation.invoke(value);
+                                return null;
                         }
                     } catch (Throwable e) {
                         e.printStackTrace();
@@ -200,7 +197,7 @@
 
   #+BEGIN_SRC java :tangle src/TestInterfaceProxyInterface.java
     public interface TestInterfaceProxyInterface {
-        public String test();
+        public String salute(String salutandum);
     }
     
   #+END_SRC
