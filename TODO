@@ -1,4 +1,216 @@
 # -*- org -*-
+* TODO ~setJavaInterfaceImplementation~ with dollars
+  #+BEGIN_SRC R :tangle refclass-with-bquote.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    make.ref.class <- function(a)
+      setRefClass('b',
+                  methods=list(initialize=eval(bquote(function() {
+                    print(.(a))
+                    .self
+                  }))));
+    
+    A <- make.ref.class(2)
+    a <- A$new()
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<preamble>>
+    
+    dollarsToJava <- function(refClass, method)
+      toJava(do.call(`$`, list(refClass, method)))
+    
+    testInterfaceProxy <- function(interface, implementation)
+      new(J('TestInterfaceProxy'),
+          interface,
+          toJava(dollarsToJava),
+          toJava(implementation))$newInstance()
+    
+    setJavaInterfaceImplementation <- function(interface,
+                                               implementation)
+      setRefClass('jobjInterfaceRef',
+                  contains=implementation$className,
+                  fields='proxy',
+                  methods=list(initialize=eval(substitute(function() {
+                    implementations <-
+                      structure(Map(function(name) {
+                        get(name, implementation$def@refMethods)
+                      },
+                                    implementation$methods()),
+                                names=implementation$methods())
+                    proxy <<-
+                      testInterfaceProxy(interface, implementations)
+                    .self
+                  },
+                                 list(interface=interface,
+                                      implementation=implementation)))))
+    
+    testInterfaceImplementation <-
+      setRefClass('testInterfaceImplementation',
+                  methods=list(test=function() "hello"))
+    
+    testInterface <-
+      setJavaInterfaceImplementation('TestInterfaceProxyInterface',
+                                     testInterfaceImplementation)
+    
+    ti <- testInterface$new()
+    
+    str(ti$proxy$test())
+    ## stopifnot(ti$mogrify('test') == ti$proxy$mogrify('test'))
+    
+  #+END_SRC
+  
+  #+BEGIN_SRC java :tangle src/TestInterfaceProxy.java
+    import java.lang.reflect.InvocationHandler;
+    import java.lang.reflect.Method;
+    import java.lang.reflect.Proxy;
+    import java.util.ArrayList;
+    import java.util.HashMap;
+    import java.util.Map;
+    import java.util.Set;
+    
+    import org.rosuda.REngine.RList;
+    import org.rosuda.REngine.REngine;
+    import org.rosuda.REngine.REXP;
+    import org.rosuda.REngine.REXPDouble;
+    import org.rosuda.REngine.REXPInteger;
+    import org.rosuda.REngine.REXPFactor;
+    import org.rosuda.REngine.REXPLanguage;
+    import org.rosuda.REngine.REXPList;
+    import org.rosuda.REngine.REXPRaw;
+    import org.rosuda.REngine.REXPReference;
+    import org.rosuda.REngine.REXPString;
+    import org.rosuda.REngine.REXPWrapper;
+    import org.rosuda.REngine.REXPJavaReference;
+    import org.rosuda.REngine.JRI.JRIEngine;
+    
+    public class TestInterfaceProxy {
+        String interfaceName;
+        REXPReference dollars;
+        REXPReference refClass;
+        InvocationHandler handler;
+        static HashMap<Class, Method> translations;
+    
+        public TestInterfaceProxy(String interfaceName,
+                                  REXPReference dollars,
+                                  REXPReference refClass) {
+            this.interfaceName = interfaceName;
+            this.dollars = dollars;
+            this.refClass = refClass;
+            this.handler = makeInvocationHandler();
+        }
+    
+        static {
+            try {
+                translations =
+                    new HashMap<Class, Method>() {
+                    {
+                        put(REXPString.class,
+                            REXPString.class.getMethod("asString"));
+                        put(REXPRaw.class,
+                            REXPRaw.class.getMethod("asBytes"));
+                        put(REXPDouble.class,
+                            REXPDouble.class.getMethod("asDouble"));
+                        put(REXPFactor.class,
+                            REXPFactor.class.getMethod("asFactor"));
+                        put(REXPInteger.class,
+                            REXPInteger.class.getMethod("asInteger"));
+                        put(REXPList.class,
+                            REXPList.class.getMethod("asList"));                    
+                    }
+                };
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
+    
+        public InvocationHandler makeInvocationHandler() {
+            return new InvocationHandler() {
+                public Object invoke(Object proxy,
+                                     Method method,
+                                     final Object[] args) {
+                    try {
+                        REXPReference refClassMethod = (REXPReference)
+                            ((REXPJavaReference)
+                             ((REXPReference) dollars).getEngine()
+                             .eval(new REXPLanguage
+                                   (new RList(new REXP[] { dollars,
+                                                           refClass,
+                                                           new REXPString(method.getName()) })),
+                                   null,
+                                   true))
+                            .getObject();
+    
+                        REXP value = refClassMethod.getEngine()
+                            .eval(new REXPLanguage
+                                  (new RList(new REXP[] { refClassMethod })),
+                                  null,
+                                  true);
+                        // final REXPReference implementation =
+                        //     TestInterfaceProxy.this.implementations
+                        //     .get(method.getName());
+                        // ArrayList<REXP> call = new ArrayList<REXP>() {
+                        //     {
+                        //         add(implementation);
+                        //         if (args != null) {
+                        //             for (Object arg: args) {
+                        //                 add(new REXPJavaReference(arg));
+                        //             }
+                        //         }
+                        //     }
+                        // };
+                        // REXP value = implementation.getEngine()
+                        //     .eval(new REXPLanguage
+                        //           (new RList (call.toArray(new REXP[0]))),
+                        //           null,
+                        //           true);
+                        // I've seen a REXPNull here before; am I masking
+                        // an error, though?
+                        if (value instanceof REXPJavaReference)
+                            return ((REXPJavaReference) value).getObject();
+                        else {
+                            Method translation = TestInterfaceProxy.translations
+                                .get(value.getClass());
+                            if (translation == null)
+                                return null;
+                            else
+                                return translation.invoke(value);
+                        }
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }
+            };
+        }
+    
+        public Object newInstance() {
+            try {
+                Class interfaceClass = Class.forName(interfaceName);
+                return Proxy.newProxyInstance(interfaceClass.getClassLoader(),
+                                              new Class[] { interfaceClass },
+                                              handler);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+    
+            return null;
+        }
+    }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC java :tangle src/TestInterfaceProxyInterface.java
+    public interface TestInterfaceProxyInterface {
+        public String test();
+    }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC makefile :tangle test-interface.mk :shebang #!/usr/bin/unexpand -t 4
+    all:
+        $(MAKE) -C src all TestInterfaceProxy.class && \
+        ./test-interface.R
+    
+  #+END_SRC
 * TODO dollars
   signature: ~RInterfaceProxy(String interfaceName, REXPReference
   refClass, REXPReference dollars)~; in ~invoke(Object proxy, Method
@@ -249,7 +461,8 @@
     library(rJava)
     source('R/interface.R')
     
-    .jpackage('rJavax', morePaths='.')
+    .jinit(classpath=paste(c(Sys.glob('inst/java/*.jar'), 'src', 'tests'),
+             collapse=':'))
     .jengine(TRUE)
     
   #+END_SRC
