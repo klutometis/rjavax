@@ -1,3 +1,6 @@
+## This is how we'd normally handle adding paths to the class-loader,
+## but the test-environment doesn't seem to invoke .onLoad().
+## options(morePaths='.')
 library(rJavax)
 
 system('make')
@@ -5,24 +8,15 @@ system('make')
 .jpackage('rJavax', morePaths='.')
 .jengine(TRUE)
 
-interface <-
-  interfaceProxy('TestInterface',
-                 list(mogrify=function(string)
-                      paste(string, 'mogrified', sep='-'),
-                      tetradicSum=function(w, x, y, z)
-                      sum(w, x, y, z),
-                      multiplyInts=function(x, y)
-                      as.integer(x * y),
-                      stack=function() {
-                        stack <- new(J('java/util/Stack'))
-                        stack$push("hello, stack")
-                        stack
-                      }))
+testInterfaceImplementation <-
+  setRefClass('testInterfaceImplementation',
+              methods=list(salute=function(salutandum)
+                sprintf('Salve, %s!', salutandum)))
 
-stopifnot(interface$mogrify('totally') == 'totally-mogrified')
+testInterface <-
+  setJavaInterfaceImplementation('TestInterfaceProxyInterface',
+                                 testInterfaceImplementation$new())
 
-stopifnot(interface$tetradicSum(1, 2, 3, 4) == 10)
+ti <- testInterface$new()
 
-stopifnot(interface$multiplyInts(as.integer(2), as.integer(4)) == 8)
-
-stopifnot(interface$stack()$pop() == "hello, stack")
+stopifnot(ti$salute('terra') == ti$proxy$salute('terra'))

@@ -1,47 +1,41 @@
-##' Merge named lists, where previous values take precedent in the
-##' case of duplicate keys.
-##' @param ... lists to be merged
-##' @return merged lists
-merge.lists <- function(...) {
-  list = do.call(c, list(...))
-  list[unique(names(do.call(c, list)))]
-}
+dollarsToJava <- function(refClass, method)
+  toJava(do.call(`$`, list(refClass, method)))
 
-##' Convert a named list of functions to a hashmap, preserving the
-##' \code{REXPReference} property.
-##' @param implementations named functions to be preserved
-##' @return the resultant hashmap
-to.hashmap <- function(implementations) {
-  hashmap <- new(J('java.util.HashMap'))
-
-  ## Some things that Java expects of Objects.
-  default.implementations <-
-    list(toString=function() "RInterfaceProxy")
-
-  implementations <-
-    merge.lists(implementations,
-                default.implementations)
-  
-  ## Really need a Foreach here, since we're not using the return
-  ## value.
-  Map(function(name, implementation)
-      hashmap$put(name, toJava(implementation)),
-      names(implementations),
-      implementations)
-  hashmap
-}
-
-##' Implement a given Java interface.
-##' @param interface the name of the to-be-implemented Java interface,
-##' e.g. \code{'life.eukarya.opisthokonta.animalia'}
-##' @param implementations a named list of functions which implement
-##' the corresponding interface-method,
-##' e.g. \code{list(eat=function(food) { ... })}
-##' @return a nullary constructor which, when invoked, instantiates
-##' the implementation; e.g. \code{animalium()$eat(prey)}
-##' @export
+##' Instantiate a Java-based \code{interface}-proxy for the
+##' \code{implementation}.
+##' @param interface the name of the to-be-implemented Java interface
+##' @param implementation an instance of the implementing \code{refClass}
+##' @return a suitable \code{RInterfaceProxy}
 ##' @import rJava
-interfaceProxy <- function(interface, implementations)
+##' @export
+interfaceProxy <- function(interface, implementation)
   new(J('RInterfaceProxy'),
       interface,
-      to.hashmap(implementations))$newInstance()
+      toJava(dollarsToJava),
+      toJava(implementation))$newInstance()
+
+##' Implement the Java-\code{interface} with a \code{refClass}-based
+##' \code{implementation}.
+##' @param interface the name of the to-be-implemented Java interface
+##' @param implementation an instance of the implementing \code{refClass}
+##' @return a \code{refClass} implementing the Java \code{interface}
+##' @note \code{implementation} takes an instance of the
+##' \code{refClass}, not the \code{refClass} itself; allowing one to
+##' make use of peculiar initializers.
+##' @export
+setJavaInterfaceImplementation <- function(interface,
+                                           implementation)
+  setRefClass('jobjInterfaceRef',
+              contains=implementation@.xData$.refClassDef@className,
+              fields='proxy',
+              methods=list(initialize=eval(substitute(function() {
+                proxy <<-
+                  interfaceProxy(interface, implementation)
+                .self
+              }),
+                             list(interface=interface,
+                                  implementation=implementation))),
+              ## Running into "cannot add bindings to a locked
+              ## environment" without this; is something fundamentally
+              ## wrong with our approach?
+              where=topenv(parent.frame()))

@@ -1,4 +1,14 @@
 # -*- org -*-
+* TODO get methods for a java class
+  [[http://tutorials.jenkov.com/java-reflection/private-fields-and-methods.html][the difference]] between ~getMethods()~ and ~getDeclaredMethods()~:
+
+  #+BEGIN_QUOTE
+  To access a private field you will need to call the
+  ~Class.getDeclaredField(String name)~ or ~Class.getDeclaredFields()~
+  method. The methods ~Class.getField(String name)~ and
+  ~Class.getFields()~ methods only return public fields, so they won't
+  work.
+  #+END_QUOTE
 * CANCELED refclass with ~bQuote~
   CLOSED: [2011-05-10 Tue 20:52]
   - CLOSING NOTE [2011-05-10 Tue 20:53] \\
@@ -15,9 +25,7 @@
     A <- make.ref.class(2)
     a <- A$new()
   #+END_SRC
-
 * TODO ~setJavaInterfaceImplementation~ with dollars
-
   #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
     
@@ -48,9 +56,6 @@
                   methods=list(salute=function(salutandum)
                     sprintf('Salve, %s!', salutandum)))
     
-    ## str(ls(envir=testInterfaceImplementation$new()@.xData,
-    ##        all.names=TRUE))
-    ## str(testInterfaceImplementation$new()@.xData$.refClassDef@className)
     testInterface <-
       setJavaInterfaceImplementation('TestInterfaceProxyInterface',
                                      testInterfaceImplementation$new())
@@ -217,7 +222,8 @@
         ./test-interface.R
     
   #+END_SRC
-* TODO dollars
+* DONE dollars
+  CLOSED: [2011-05-10 Tue 21:47]
   signature: ~RInterfaceProxy(String interfaceName, REXPReference
   refClass, REXPReference dollars)~; in ~invoke(Object proxy, Method
   method, final Object[] args)~, ~method.getName()~ takes the place of
@@ -230,7 +236,10 @@
 
   it's merely convenient, of course, to pass it in; can we justify it
   by abstracting the accessor? don't think so.
-* TODO =setJavaInterfaceImplementation=
+* DONE =setJavaInterfaceImplementation=
+  CLOSED: [2011-05-10 Tue 21:47]
+  - CLOSING NOTE [2011-05-10 Tue 21:47] \\
+    Pre-dollars
 # <<setJavaInterfaceImplementation>>
   because of the limitations of closures and refclasses, have to
   repeat the implementation in both =setJII= *and* the constructor;
