@@ -89,8 +89,8 @@ public class RInterfaceProxy {
                                     if (wrappedArg != null)
                                         add(wrappedArg);
                                     else
-                                        // Last-ditched attempt to add
-                                        // a non-scalar
+                                        // Last-ditch attempt to add a
+                                        // non-scalar
                                         add(new REXPJavaReference(arg));
                                 }
                             }
@@ -99,16 +99,16 @@ public class RInterfaceProxy {
 
                     REXP value = refClassMethod.getEngine()
                         .eval(new REXPLanguage
-                              (new RList(
-                                         call.toArray(new REXP[0])
-                                         // new REXP[] { refClassMethod }
-                                         )),
+                              (new RList(call.toArray(new REXP[0]))),
                               null,
                               true);
 
                     if (value instanceof REXPJavaReference)
                         return ((REXPJavaReference) value).getObject();
                     else {
+                        // This is not the inverse of REXPWrapper.wrap
+                        // in the sense that we only support an
+                        // inverse mapping of a subset of its domain:
                         Method translator = RInterfaceProxy.translators
                             .get(value.getClass());
                         if (translator != null)

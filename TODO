@@ -9,23 +9,12 @@
   ~Class.getFields()~ methods only return public fields, so they won't
   work.
   #+END_QUOTE
-* CANCELED refclass with ~bQuote~
-  CLOSED: [2011-05-10 Tue 20:52]
-  - CLOSING NOTE [2011-05-10 Tue 20:53] \\
-    Can't make bquote work with more complicated examples (e.g. nested
-    functions); falling back on ~substitute~.
-  #+BEGIN_SRC R :tangle refclass-with-bquote.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    make.ref.class <- function(a)
-      setRefClass('b',
-                  methods=list(initialize=eval(bquote(function() {
-                    print(.(a))
-                    .self
-                  }))));
-    
-    A <- make.ref.class(2)
-    a <- A$new()
-  #+END_SRC
-* TODO ~setJavaInterfaceImplementation~ with dollars
+* TODO use proper namespacing
+  =com/gene/rJavax=, etc.
+* TODO switch to ant instead of Makefiles
+  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE ~setJavaInterfaceImplementation~ with dollars
+  CLOSED: [2011-05-10 Tue 22:50]
   #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
     
@@ -308,10 +297,6 @@
                           as.integer(x * y)))),
         jclass='RInterfaceProxy')$newInstance()$tetradicSum(1, 2, 3, 4)
   #+END_SRC
-* TODO use proper namespacing
-  =com/gene/rJavax=, etc.
-* TODO switch to ant instead of Makefiles
-  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
 * DONE call the result of an R function
   CLOSED: [2011-05-04 Wed 03:00]
   - CLOSING NOTE [2011-05-04 Wed 03:00] \\
@@ -820,6 +805,22 @@
             re.close();
         }
     }
+  #+END_SRC
+* CANCELED refclass with ~bQuote~
+  CLOSED: [2011-05-10 Tue 20:52]
+  - CLOSING NOTE [2011-05-10 Tue 20:53] \\
+    Can't make bquote work with more complicated examples (e.g. nested
+    functions); falling back on ~substitute~.
+  #+BEGIN_SRC R :tangle refclass-with-bquote.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    make.ref.class <- function(a)
+      setRefClass('b',
+                  methods=list(initialize=eval(bquote(function() {
+                    print(.(a))
+                    .self
+                  }))));
+    
+    A <- make.ref.class(2)
+    a <- A$new()
   #+END_SRC
 * CANCELED implementations as reference classes instead of lists
   CLOSED: [2011-05-04 Wed 03:01]

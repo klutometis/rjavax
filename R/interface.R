@@ -25,6 +25,7 @@ interfaceProxy <- function(interface, implementation)
 ##' @export
 setJavaInterfaceImplementation <- function(interface,
                                            implementation)
+  ## Should we use a class-name based on the implementation/interface?
   setRefClass('jobjInterfaceRef',
               contains=implementation@.xData$.refClassDef@className,
               fields='proxy',
