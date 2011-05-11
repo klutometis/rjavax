@@ -1,5 +1,138 @@
 # -*- org -*-
-* TODO get methods for a java class
+* TODO we appear to be doing something fundamentally wrong with refClasses
+  in ~setJavaInterfaceImplementation~: 'jobjInterfaceRef' becomes part
+  of the package/global namespace, doesn't it? Shouldn't we therefore
+  name it after the implementation/interface?
+
+  Take care, then, because we're polluting the namespace with
+  dynamically generated refClass-names.
+
+  Should we add a ~where~ to ~setJavaInterfaceImplementation~ that
+  defaults to something suitable?
+* TODO use proper namespacing
+  =com/gene/rJavax=, etc.
+* TODO switch to ant instead of Makefiles
+  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE integration of proxy-object with package
+  CLOSED: [2011-05-11 Wed 14:04]
+  Of course: we can't integrate it statically, because we have to
+  instantiate a reference object! Damn.
+
+  #+BEGIN_SRC R :tangle integrate-proxy-object.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<preamble>>
+    
+    proxyMethods <- function(class) {
+      method.names <- unique(Map(function(method) method$getName(),
+                                 as.list(J('java.lang.Class')
+                                         $forName(class)
+                                         $getMethods())))
+    
+      proxyObject <- new(J(class)) 
+    
+      structure(Map(function(method.name)
+                    ## Have to force evaluation because `method.name'
+                    ## and `proxyObject' aren't defined from the
+                    ## refClass.
+                    eval(substitute(function(...) {
+                      .jrcall(proxyObject, method.name, ...)
+                    },
+                                    list(method.name=method.name,
+                                         proxyObject=proxyObject))),
+                    method.names),
+                names=method.names)
+    }
+    
+    ##' Implement the Java-\code{interface} with a \code{refClass}-based
+    ##' \code{implementation}.
+    ##' @param interface the name of the to-be-implemented Java interface
+    ##' @param implementation an instance of the implementing \code{refClass}
+    ##' @return a \code{refClass} implementing the Java \code{interface}
+    ##' @note \code{implementation} takes an instance of the
+    ##' \code{refClass}, not the \code{refClass} itself; allowing one to
+    ##' make use of peculiar initializers.
+    ##' @export
+    setJavaInterfaceImplementation <- function(interface,
+                                               implementation,
+                                               base='java.lang.Object') {
+      ## Should we use a class-name based on the implementation/interface?
+      setRefClass('jobjInterfaceRef',
+                  contains=c(implementation@.xData$.refClassDef@className),
+                  fields='proxy',
+                  methods=c(eval(substitute(proxyMethods(base),
+                    list(base=base))),
+                    initialize=eval(substitute(function() {
+                      proxy <<-
+                        interfaceProxy(interface, implementation)
+                      .self
+                    }),
+                      list(interface=interface,
+                           implementation=implementation))),
+                  ## Running into "cannot add bindings to a locked
+                  ## environment" without this; is something fundamentally
+                  ## wrong with our approach?
+                  ##
+                  ## See TODO: we'll pollute the namespace with
+                  ## dynamically generated names based on e.g.
+                  where=topenv(parent.frame()))
+    }
+    
+    testInterfaceImplementation <-
+      setRefClass('testInterfaceImplementation',
+                  methods=list(salute=function(salutandum)
+                    sprintf('Salve, %s!', salutandum)))
+    
+    testInterface <-
+      setJavaInterfaceImplementation('TestInterfaceProxyInterface',
+                                     testInterfaceImplementation$new())
+    
+    stopifnot(typeof(testInterface$new()$hashCode()) == 'integer')
+    
+  #+END_SRC
+* DONE abstract proxy-object into a constructor
+  CLOSED: [2011-05-11 Wed 13:16]
+  - CLOSING NOTE [2011-05-11 Wed 13:16] \\
+    Between magically bound identifiers and ~substitute~, this is weird
+    shit.
+  #+BEGIN_SRC R :tangle proxy-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    .jinit()
+    
+    proxyObject <- function(class) {
+      method.names <- unique(Map(function(method) method$getName(),
+                                 as.list(J('java.lang.Class')
+                                         $forName(class)
+                                         $getMethods())))
+    
+    
+      methods <-
+        structure(Map(function(method.name)
+                      ## Have to force evaluation because `method.name'
+                      ## isn't defined from the refClass.
+                      eval(substitute(function(...) {
+                        ## `deferendum' is magically bound within the
+                        ## refClass environment.
+                        .jrcall(deferendum, method.name, ...)
+                      },
+                                      list(method.name=method.name))),
+                      method.names),
+                  names=method.names)
+    
+      setRefClass('objectDeference',
+                  fields='deferendum',
+                  methods=c(methods,
+                    initialize=eval(substitute(function() {
+                      deferendum <<- eval(substitute(new(J(class)), list(class=class)))
+                      .self
+                    }),
+                      list(class=class))))
+    }
+    
+    stopifnot(typeof(proxyObject('java.lang.Object')$new()$hashCode()) ==
+              'integer')
+    
+  #+END_SRC
+* DONE get methods for a java class
+  CLOSED: [2011-05-11 Wed 13:16]
   [[http://tutorials.jenkov.com/java-reflection/private-fields-and-methods.html][The difference]] between ~getMethods()~ and ~getDeclaredMethods()~:
 
   #+BEGIN_QUOTE
@@ -95,20 +228,6 @@
                           fields='deferendum',
                           methods=methods)$new()$hashCode())
   #+END_SRC
-* TODO we appear to be doing something fundamentally wrong with refClasses
-  in ~setJavaInterfaceImplementation~: 'jobjInterfaceRef' becomes part
-  of the package/global namespace, doesn't it? Shouldn't we therefore
-  name it after the implementation/interface?
-
-  Take care, then, because we're polluting the namespace with
-  dynamically generated refClass-names.
-
-  Should we add a ~where~ to ~setJavaInterfaceImplementation~ that
-  defaults to something suitable?
-* TODO use proper namespacing
-  =com/gene/rJavax=, etc.
-* TODO switch to ant instead of Makefiles
-  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
 * DONE introspect Object
   CLOSED: [2011-05-11 Wed 10:22]
   #+BEGIN_SRC R :tangle introspect-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f

@@ -20,3 +20,5 @@ testInterface <-
 ti <- testInterface$new()
 
 stopifnot(ti$salute('terra') == ti$proxy$salute('terra'))
+
+ti$hashCode()
