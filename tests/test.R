@@ -21,4 +21,5 @@ ti <- testInterface$new()
 
 stopifnot(ti$salute('terra') == ti$proxy$salute('terra'))
 
-ti$hashCode()
+## Test implicit inheritance from Object.
+stopifnot(typeof(ti$hashCode()) == 'integer')
