@@ -1,6 +1,6 @@
 # -*- org -*-
 * TODO get methods for a java class
-  [[http://tutorials.jenkov.com/java-reflection/private-fields-and-methods.html][the difference]] between ~getMethods()~ and ~getDeclaredMethods()~:
+  [[http://tutorials.jenkov.com/java-reflection/private-fields-and-methods.html][The difference]] between ~getMethods()~ and ~getDeclaredMethods()~:
 
   #+BEGIN_QUOTE
   To access a private field you will need to call the
@@ -9,10 +9,124 @@
   ~Class.getFields()~ methods only return public fields, so they won't
   work.
   #+END_QUOTE
+
+  Can apparently not access ~methods~ from within ~methods~:
+
+  #+BEGIN_SRC R :tangle methods-from-methods.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    setRefClass('methodsFromMethods',
+                methods=list(a=function() {},
+                  initialize=function() {
+                    str(methods)
+                    cat(ls(.self@.xData))
+                    .self
+                  }))$new()    
+  #+END_SRC
+
+  That's ok, though: we have an implementing refClass that we're
+  passing in. Should we create a proxy refClass from Object that we
+  also inherit from, allowing its methods to be over-shadowed by the
+  implementing refClass?
+
+  First contained class takes precedence w.r.t. method-shadowing:
+
+  #+BEGIN_SRC R :tangle refclass-shadow.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    setRefClass('a',
+                methods=list(a=function() 1))
+    
+    setRefClass('b',
+                methods=list(a=function() 2))
+    
+    stopifnot(setRefClass('c',
+                          contains=c('a', 'b'))$new()$a() == 1)
+    
+    stopifnot(setRefClass('d',
+                          contains=c('b', 'a'))$new()$a() == 2)
+  #+END_SRC
+
+  This, for instance, does not work:
+
+  #+BEGIN_SRC R :tangle add-dynamic-methods.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    setRefClass('a',
+                methods=list(initialize=function() {
+                  unlockBinding('methods', parent.frame())
+                  methods <<- list(a=function() 1)
+                  .self
+                }))$new()$a()
+    
+  #+END_SRC
+
+  We need another mechanism: ~substitute~ to the rescue?
+
+  #+BEGIN_SRC R :tangle substitute-dynamic-methods.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    stopifnot(eval(substitute(setRefClass('a', methods=methodList),
+                              list(methodList=list(a=function() 2))))$new()$a()
+              == 2)
+    
+    stopifnot((function(methodList)
+               setRefClass('b', methods=methodList))(list(a=function()
+                                  2))$new()$a()
+              == 2)    
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle defer-to-proxy-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    .jinit()
+    
+    method.names <- unique(Map(function(method) method$getName(),
+                               as.list(J('java.lang.Class')
+                                       $forName('java.lang.Object')
+                                       $getMethods())))
+    
+    proxyObject = new(J('java.lang.Object'))
+    
+    methods <-
+      structure(Map(function(method.name)
+                    ## Have to force evaluation because `method.name'
+                    ## isn't defined from the refClass.
+                    eval(substitute(function(...) {
+                      .jrcall(proxyObject, method.name, ...)
+                    },
+                                    list(method.name=method.name))),
+                    method.names),
+                names=method.names)
+    
+    stopifnot(methods$hashCode() ==
+              setRefClass('objectDeference',
+                          fields='deferendum',
+                          methods=methods)$new()$hashCode())
+  #+END_SRC
+* TODO we appear to be doing something fundamentally wrong with refClasses
+  in ~setJavaInterfaceImplementation~: 'jobjInterfaceRef' becomes part
+  of the package/global namespace, doesn't it? Shouldn't we therefore
+  name it after the implementation/interface?
+
+  Take care, then, because we're polluting the namespace with
+  dynamically generated refClass-names.
+
+  Should we add a ~where~ to ~setJavaInterfaceImplementation~ that
+  defaults to something suitable?
 * TODO use proper namespacing
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
   can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE introspect Object
+  CLOSED: [2011-05-11 Wed 10:22]
+  #+BEGIN_SRC R :tangle introspect-object.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJava)
+    .jinit()
+    
+    stopifnot(unique(Map(function(method) method$getName(),
+                         as.list(J('java.lang.Class')
+                                 $forName('java.lang.Object')
+                                 $getMethods()))) ==
+              c("hashCode",
+                "getClass",
+                "wait",
+                "equals",
+                "notify",
+                "notifyAll",
+                "toString"))
+  #+END_SRC
 * DONE ~setJavaInterfaceImplementation~ with dollars
   CLOSED: [2011-05-10 Tue 22:50]
   #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f

@@ -39,4 +39,7 @@ setJavaInterfaceImplementation <- function(interface,
               ## Running into "cannot add bindings to a locked
               ## environment" without this; is something fundamentally
               ## wrong with our approach?
+              ##
+              ## See TODO: we'll pollute the namespace with
+              ## dynamically generated names based on e.g.
               where=topenv(parent.frame()))
