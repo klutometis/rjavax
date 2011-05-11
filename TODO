@@ -1,5 +1,9 @@
 # -*- org -*-
-* TODO ~setJavaInterfaceImplementation~ with dollars
+* CANCELED refclass with ~bQuote~
+  CLOSED: [2011-05-10 Tue 20:52]
+  - CLOSING NOTE [2011-05-10 Tue 20:53] \\
+    Can't make bquote work with more complicated examples (e.g. nested
+    functions); falling back on ~substitute~.
   #+BEGIN_SRC R :tangle refclass-with-bquote.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     make.ref.class <- function(a)
       setRefClass('b',
@@ -11,6 +15,8 @@
     A <- make.ref.class(2)
     a <- A$new()
   #+END_SRC
+
+* TODO ~setJavaInterfaceImplementation~ with dollars
 
   #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
@@ -27,24 +33,27 @@
     setJavaInterfaceImplementation <- function(interface,
                                                implementation)
       setRefClass('jobjInterfaceRef',
-                  contains=implementation$className,
+                  contains=implementation@.xData$.refClassDef@className,
                   fields='proxy',
                   methods=list(initialize=eval(substitute(function() {
                     proxy <<-
-                      testInterfaceProxy(interface, implementation$new())
+                      testInterfaceProxy(interface, implementation)
                     .self
-                  },
+                  }),
                                  list(interface=interface,
-                                      implementation=implementation)))))
+                                      implementation=implementation))))
     
     testInterfaceImplementation <-
       setRefClass('testInterfaceImplementation',
                   methods=list(salute=function(salutandum)
                     sprintf('Salve, %s!', salutandum)))
     
+    ## str(ls(envir=testInterfaceImplementation$new()@.xData,
+    ##        all.names=TRUE))
+    ## str(testInterfaceImplementation$new()@.xData$.refClassDef@className)
     testInterface <-
       setJavaInterfaceImplementation('TestInterfaceProxyInterface',
-                                     testInterfaceImplementation)
+                                     testInterfaceImplementation$new())
     
     ti <- testInterface$new()
     
