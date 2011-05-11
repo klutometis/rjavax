@@ -1334,3 +1334,25 @@
    bioconductor conference; poster-worthy stuff; get the
    proxy-object-class working; integrated into a nice package; IGB by
    the end of the month.
+** Wed May 11 14:13:54 PDT 2011
+   arguments to generator object 2 passed on to the generator object
+   in ~setJavaInterfaceImplementation~; making ~where~ customizable;
+   ~setRefClass~: mangle the class name with implementation; do want
+   to get a class object back from ~setJavaInterfaceImplementation~;
+   mutate the implementing class? ~$methods(...)~ is sim
+
+   want to be able to pass the thing to Java (thus contains ~jobjRef~
+   or allows the ~jobjRef~ to be extracted); embed java instance in
+   there;
+
+   wrap the original initialize, delegate to it; pass on the
+   arguments; don't have to define a new class;
+   ~setJavaInterfaceImplementation~ rewrites ~initialize~; mutates;
+   doesn't have to pass back; ideally, so that the implementation
+   class can extend ~jobjRef~: when they define their implementation
+   class, they would have to ~contains=jobjRef~; we should check for
+   it; pass it to ~rJava~ function; have to deal with it from the Java
+   side as a ~REXPReference~; is this S4 as opposed to environment? S4
+   slot as attribute for pointer; pass to a method, shouldn't know the
+   difference; take the object returned from the ~RInterfaceProxy~,
+   copy those slots into the reference class instance.
