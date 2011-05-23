@@ -1,5 +1,61 @@
 # -*- org -*-
 * TODO mutate initializer
+  #+BEGIN_QUOTE
+  On May 17, 2011, at 2:25 PM, Peter Danenberg wrote:
+
+  > I'm trying to instantiate a refClass containing jobjRef, but the
+  > object appears to be defective when `._jobjRef_dollar' is invoked:
+  > 
+  >> setRefClass('myjobjRef', contains='jobjRef')
+  >> 
+  >> new('myjobjRef',
+  >  +     jobj=.External('RcreateObject',
+  >  +       'java/lang/Object'),
+  >  +     jclass='java/lang/Object')$hashCode()
+  >  Error in .jcall("RJavaTools", "Z", "hasField", .jcast(x, "java/lang/Object"),  :
+  >    method hasField with signature (Ljava/lang/String;)Z not found                  
+  > 
+  > Do you have any idea what sort of initialization I'm missing?
+
+  The fact that you cannot subclass jobjRef. The problem is that for
+  performance reasons a lot of internal code uses inherits() to check
+  the class of the object which unfortunately doesn't take into
+  account S4 inheritance (partially it comes from times when jobjRef
+  was a S3 class). Hence as far as rJava is concerned, your object is
+  not a jobjRef so it falls through strange cracks.
+
+  Now, your particular case is easy to fix, it's just in .jcall()
+  which can easily use is() instead of inherits(), but in the C code
+  there is no easy way to check inheritance of S4 objects AFAIK, so I
+  fear it's unlikely to change soon (unless S4 gets more low-level
+  support in R).
+
+  I'm not sure what you're up to, especially since reference objects
+  and jobjRef are different implementations of the same concept, so
+  even if you could subclass jobjRef it would result in chaos, since
+  both classes are orthogonal yet use the same methods ($ in
+  particular).
+
+  Cheers,
+  Simon
+  #+END_QUOTE
+
+  #+BEGIN_QUOTE
+  On Tue, May 17, 2011 at 5:45 PM, Peter Danenberg <pcd@roxygen.org> wrote:                                                                                                                                           
+
+  > That's interesting; do you think that trick would allow Java to
+  > use the objects transparently?
+
+  Well yes, I think we should try it. His point about the $ causing
+  "chaos" is probably not a huge issue, since our reference class $
+  will provide the same methods that jobjRef provides. Just need to
+  trick his inherits() calls until they get fixed.
+
+  > This sounds like a bug in rjava to me. Anyway, how about hacking
+  > the class attribute to trick the inherits function? Like
+  > c("class", "jobjRef").  That has worked for me in the past.
+  #+END_QUOTE
+
   #+BEGIN_SRC R :noweb yes :tangle mutate-initializer.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
       
