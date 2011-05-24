@@ -29,8 +29,8 @@ public class RInterfaceProxy {
     static HashMap<Class, Method> translators;
 
     public RInterfaceProxy(String interfaceName,
-                              REXPReference dollars,
-                              REXPReference refClass) {
+                           REXPReference dollars,
+                           REXPReference refClass) {
         this.interfaceName = interfaceName;
         this.dollars = dollars;
         this.refClass = refClass;

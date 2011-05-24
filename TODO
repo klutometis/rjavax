@@ -1,185 +1,65 @@
 # -*- org -*-
-* TODO mutate initializer
-  #+BEGIN_QUOTE
-  On May 17, 2011, at 2:25 PM, Peter Danenberg wrote:
-
-  > I'm trying to instantiate a refClass containing jobjRef, but the
-  > object appears to be defective when `._jobjRef_dollar' is invoked:
-  > 
-  >> setRefClass('myjobjRef', contains='jobjRef')
-  >> 
-  >> new('myjobjRef',
-  >  +     jobj=.External('RcreateObject',
-  >  +       'java/lang/Object'),
-  >  +     jclass='java/lang/Object')$hashCode()
-  >  Error in .jcall("RJavaTools", "Z", "hasField", .jcast(x, "java/lang/Object"),  :
-  >    method hasField with signature (Ljava/lang/String;)Z not found                  
-  > 
-  > Do you have any idea what sort of initialization I'm missing?
-
-  The fact that you cannot subclass jobjRef. The problem is that for
-  performance reasons a lot of internal code uses inherits() to check
-  the class of the object which unfortunately doesn't take into
-  account S4 inheritance (partially it comes from times when jobjRef
-  was a S3 class). Hence as far as rJava is concerned, your object is
-  not a jobjRef so it falls through strange cracks.
-
-  Now, your particular case is easy to fix, it's just in .jcall()
-  which can easily use is() instead of inherits(), but in the C code
-  there is no easy way to check inheritance of S4 objects AFAIK, so I
-  fear it's unlikely to change soon (unless S4 gets more low-level
-  support in R).
-
-  I'm not sure what you're up to, especially since reference objects
-  and jobjRef are different implementations of the same concept, so
-  even if you could subclass jobjRef it would result in chaos, since
-  both classes are orthogonal yet use the same methods ($ in
-  particular).
-
-  Cheers,
-  Simon
-  #+END_QUOTE
+* TODO use proper namespacing
+  =com/gene/rJavax=, etc.
+* TODO switch to ant instead of Makefiles
+  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE ascending the class hierarchy
+  CLOSED: [2011-05-24 Tue 11:42]
+  [[http://download.oracle.com/javase/6/docs/api/java/lang/Class.html#getDeclaredMethods()][getDeclaredMethods]]:
 
   #+BEGIN_QUOTE
-  On Tue, May 17, 2011 at 5:45 PM, Peter Danenberg <pcd@roxygen.org> wrote:                                                                                                                                           
-
-  > That's interesting; do you think that trick would allow Java to
-  > use the objects transparently?
-
-  Well yes, I think we should try it. His point about the $ causing
-  "chaos" is probably not a huge issue, since our reference class $
-  will provide the same methods that jobjRef provides. Just need to
-  trick his inherits() calls until they get fixed.
-
-  > This sounds like a bug in rjava to me. Anyway, how about hacking
-  > the class attribute to trick the inherits function? Like
-  > c("class", "jobjRef").  That has worked for me in the past.
+  This includes public, protected, default (package) access, and
+  private methods, but excludes inherited methods.
   #+END_QUOTE
 
-  #+BEGIN_SRC R :noweb yes :tangle mutate-initializer.R :shebang #!/usr/local/bin/R --vanilla --slave -f
-    <<preamble>>
-      
-    new('jobjRef',
-        jobj=.External('RcreateObject',
-          'java/lang/Object'),
-        jclass='java/lang/Object')$hashCode()
-    
-    setRefClass('myjobjRef', contains='jobjRef')
-    
-    new('myjobjRef',
-        jobj=.External('RcreateObject',
-          'java/lang/Object'),
-        jclass='java/lang/Object')$hashCode()
-    
-    ## mi <- setRefClass('mutateInitializer',
-    ##                   contains='jobjRef',
-    ##                   methods=list(initialize=function() {
-    ##                     callSuper()
-    ##                     .self
-    ##                   }),
-    ##                   representation(jobj="externalptr", jclass="character"), prototype=list(jobj=.jzeroRef, jclass="java/lang/Object"), where=environment())
-    ## mi$methods(initialize=function() {
-    ##   callSuper()
-    ##   .self
-    ## })
-    ## mi$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
-    ##            jclass='java/lang/Object')
-    ## mi$new()
-    
-    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
-    
-    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
-    ##        jclass='java/lang/Object')
-    
-  #+END_SRC
+  The inherited vs. non-inherited thing is probably more fundamental
+  than [[declared-methods][publication]] (v. infra).
 
-  #+BEGIN_SRC R :noweb yes :tangle mutate-jobjref-initializer.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+  #+BEGIN_SRC R :tangle ascend-class-hierarchy.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
-      
-    ## new('jobjRef',
-    ##     jobj=.External('RcreateObject',
-    ##       'RInterfaceProxy',
-    ##       'TestInterface',
-    ##       to.hashmap(list(mogrify=function(string)
-    ##                       paste(string, 'mogrified', sep='-'),
-    ##                       tetradicSum=function(w, x, y, z)
-    ##                       sum(w, x, y, z),
-    ##                       multiplyInts=function(x, y)
-    ##                       as.integer(x * y)))),
-    ##     jclass='RInterfaceProxy')$newInstance()$tetradicSum(1, 2, 3, 4)
     
-    ## i <- setRefClass('myjobjRef',
-    ##             contains='jobjRef'## ,
-    ##             ## methods=list(initialize=function() {
-    ##             ##   callSuper()
-    ##             ##   .self
-    ##             ## })
-    ##             )
-    ## inew <- new('myjobjRef',
-    ##           jobj=.External('RcreateObject',
-    ##             'java/lang/Object',
-    ##             PACKAGE='rJava'),
-    ##           jclass='java/lang/Object')
-    ## inew$methods(harro=function() 2)
-    ## ._java_valid_object <- function(a) {
-    ##   if (is(a, "jobjRef")) a 
-    ##   else if (is.null(a)) .jnull() else {
-    ##     cm <- match(class(a)[1], names(.class.to.jclass))
-    ##     if (!any(is.na(cm))) { 
-    ##         if (length(a) == 1) { 
-    ##             y <- .jnew(.class.to.jclass[cm], a)
-    ##             if (.class.to.jclass[cm] %in% .primitive.classes) attr(y, "primitive") <- TRUE
-    ##             y 
-    ##         } else .jarray(a, dispatch = FALSE)
-    ##     } else {
-    ##       stop("Sorry, parameter type `", cm ,"' is ambiguous or not supported.")
-    ##     }
-    ##   }
-    ## }
-    ## ._java_valid_objects_list <- function( ... )
-    ##   lapply(list(...), ._java_valid_object )
-    ## ._java_class <- function( x ){
-    ##   if (is.jnull(x)) { if (is(x,"jobjRef")) .jfindClass(x@jclass) else .jclassObject } else {
-    ##     if (._isPrimitiveReference(x)) .jfield(x, "Ljava/lang/Class;", "TYPE") else .jcall(x, "Ljava/lang/Class;", "getClass")
-    ##   }
-    ## }
-    ## ._java_class_list <- function( objects_list )
-    ##     lapply(objects_list, ._java_class )
-    ## inew <- .jcall("RJavaTools", "Ljava/lang/Object;", 
-    ##     "newInstance", .jfindClass('java/lang/Object'), 
-    ##     .jarray(._java_valid_objects_list(NULL),"java/lang/Object", dispatch = FALSE ), 
-    ##     .jarray(._java_class_list(._java_valid_objects_list(NULL)),"java/lang/Class", dispatch = FALSE ), 
-    ##     evalString = FALSE, evalArray = FALSE, use.true.class = TRUE )
-    ## .jcall('RJavaTools', 'Z', 'hasField', inew, 'harro')
-    ## new(J('java.lang.Object'))$hashCode()
+    getJavaRefClass <- getRefClass
     
-    ## i <- setRefClass('myjobjRef',
-    ##             contains='jobjRef'## ,
-    ##             ## methods=list(initialize=function() {
-    ##             ##   callSuper()
-    ##             ##   .self
-    ##             ## })
-    ##             )
-    ## ## i$new()$methods('initialize')
-    ## i$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
-    ##       jclass='java/lang/Object')$harro()
+    setJavaRefClass <- function(className)
+      tryCatch(getJavaRefClass(className),
+               error=function(e) {
+                 class <- J('java.lang.Class')$forName(className)
+                 superclass <- class$getSuperclass()
+                 if (!is.null(superclass))
+                   setJavaRefClass(superclass$getName())
+                 declaredMethods <-
+                   Map(function(method) method$getName(),
+                       as.list(class$getDeclaredMethods()))
+                 methods <-
+                   structure(Map(function(method)
+                                 eval(substitute(function(...)
+                                                 .jrcall(.self$ref, method, ...), 
+                                                 list(method=method))),
+                                 declaredMethods),
+                             names=declaredMethods)
+                 setRefClass(className,
+                             fields='ref',
+                             methods=c(methods,
+                               initialize=eval(substitute(function(...) {
+                                 ref <<- new(J(className), ...)
+                                 .self
+                               },
+                                 list(className=className)))),
+                             NULL)
+               })
     
-    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    File <- setJavaRefClass('java.io.File')
+    stopifnot(File$new('/tmp')$getPath() == '/tmp')
     
-    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
-    ##        jclass='java/lang/Object')$hashCode()
-    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    ## Object is automagically define.
+    Object <- getJavaRefClass('java.lang.Object')
+    stopifnot(typeof(Object$new()$hashCode()) == 'integer')
     
-    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
-    ##        jclass='java/lang/Object')$hashCode()
-    
-    ## .jcall("RJavaTools", "Ljava/lang/Object;", 
-    ##     "newInstance", .jfindClass('java/lang/Object'), 
-    ##     .jarray(NULL,"java/lang/Object", dispatch = FALSE ), 
-    ##     .jarray(NULL,"java/lang/Class", dispatch = FALSE ), 
-    ##     evalString = FALSE, evalArray = FALSE, use.true.class = TRUE )
   #+END_SRC
-* TODO we appear to be doing something fundamentally wrong with refClasses
+* DONE we appear to be doing something fundamentally wrong with refClasses
+  CLOSED: [2011-05-23 Mon 17:07]
+  - CLOSING NOTE [2011-05-23 Mon 17:07] \\
+    Yeah, let's name-mangle.
   in ~setJavaInterfaceImplementation~: 'jobjInterfaceRef' becomes part
   of the package/global namespace, doesn't it? Shouldn't we therefore
   name it after the implementation/interface?
@@ -189,10 +69,6 @@
 
   Should we add a ~where~ to ~setJavaInterfaceImplementation~ that
   defaults to something suitable?
-* TODO use proper namespacing
-  =com/gene/rJavax=, etc.
-* TODO switch to ant instead of Makefiles
-  can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
 * DONE integration of proxy-object with package
   CLOSED: [2011-05-11 Wed 14:04]
   Of course: we can't integrate it statically, because we have to
@@ -315,6 +191,7 @@
   CLOSED: [2011-05-11 Wed 13:16]
   [[http://tutorials.jenkov.com/java-reflection/private-fields-and-methods.html][The difference]] between ~getMethods()~ and ~getDeclaredMethods()~:
 
+# <<declared-methods>>
   #+BEGIN_QUOTE
   To access a private field you will need to call the
   ~Class.getDeclaredField(String name)~ or ~Class.getDeclaredFields()~
@@ -426,7 +303,7 @@
                 "notifyAll",
                 "toString"))
   #+END_SRC
-* DONE ~setJavaInterfaceImplementation~ with dollars
+* DONE =setJavaInterfaceImplementation= with dollars
   CLOSED: [2011-05-10 Tue 22:50]
   #+BEGIN_SRC R :tangle test-interface.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
@@ -843,7 +720,7 @@
     all:
         make -C src all TestArbitraryObject.class && ./test-arbitrary-object.R
   #+END_SRC
-* DONE ~ld.so.conf~
+* DONE =ld.so.conf=
   CLOSED: [2011-04-25 Mon 02:35]
   i have to add at least these two directories (pointing to
   ~libjvm.so~ and ~rJava.so~:
@@ -852,7 +729,7 @@
   /usr/local/java/jre/lib/amd64/server/
   /usr/local/lib64/R/library/rJava/libs
   #+END_EXAMPLE
-* DONE ~REXPJavaReference~
+* DONE =REXPJavaReference=
   CLOSED: [2011-04-25 Mon 02:24]
   - CLOSING NOTE [2011-04-25 Mon 02:25] \\
     http://www.rforge.net/JRI/files/
@@ -876,7 +753,7 @@
     
     .jinit(classpath=paste(c(Sys.glob('inst/java/*.jar'), 'src', 'tests'),
              collapse=':'))
-    .jengine(TRUE)
+    invisible(.jengine(TRUE))
     
   #+END_SRC
 * DONE reference class inheriting from =jobjRef=
@@ -1219,7 +1096,191 @@
         }
     }
   #+END_SRC
-* CANCELED refclass with ~bQuote~
+* CANCELED mutate initializer
+  CLOSED: [2011-05-23 Mon 17:07]
+  - CLOSING NOTE [2011-05-23 Mon 17:08] \\
+    Another approach, based on some whiteboarding with Michael: a custom
+    refClass containing proxy (in some sense, our initial solution).
+  #+BEGIN_QUOTE
+  On May 17, 2011, at 2:25 PM, Peter Danenberg wrote:
+
+  > I'm trying to instantiate a refClass containing jobjRef, but the
+  > object appears to be defective when `._jobjRef_dollar' is invoked:
+  > 
+  >> setRefClass('myjobjRef', contains='jobjRef')
+  >> 
+  >> new('myjobjRef',
+  >  +     jobj=.External('RcreateObject',
+  >  +       'java/lang/Object'),
+  >  +     jclass='java/lang/Object')$hashCode()
+  >  Error in .jcall("RJavaTools", "Z", "hasField", .jcast(x, "java/lang/Object"),  :
+  >    method hasField with signature (Ljava/lang/String;)Z not found                  
+  > 
+  > Do you have any idea what sort of initialization I'm missing?
+
+  The fact that you cannot subclass jobjRef. The problem is that for
+  performance reasons a lot of internal code uses inherits() to check
+  the class of the object which unfortunately doesn't take into
+  account S4 inheritance (partially it comes from times when jobjRef
+  was a S3 class). Hence as far as rJava is concerned, your object is
+  not a jobjRef so it falls through strange cracks.
+
+  Now, your particular case is easy to fix, it's just in .jcall()
+  which can easily use is() instead of inherits(), but in the C code
+  there is no easy way to check inheritance of S4 objects AFAIK, so I
+  fear it's unlikely to change soon (unless S4 gets more low-level
+  support in R).
+
+  I'm not sure what you're up to, especially since reference objects
+  and jobjRef are different implementations of the same concept, so
+  even if you could subclass jobjRef it would result in chaos, since
+  both classes are orthogonal yet use the same methods ($ in
+  particular).
+
+  Cheers,
+  Simon
+  #+END_QUOTE
+
+  #+BEGIN_QUOTE
+  On Tue, May 17, 2011 at 5:45 PM, Peter Danenberg <pcd@roxygen.org> wrote:                                                                                                                                           
+
+  > That's interesting; do you think that trick would allow Java to
+  > use the objects transparently?
+
+  Well yes, I think we should try it. His point about the $ causing
+  "chaos" is probably not a huge issue, since our reference class $
+  will provide the same methods that jobjRef provides. Just need to
+  trick his inherits() calls until they get fixed.
+
+  > This sounds like a bug in rjava to me. Anyway, how about hacking
+  > the class attribute to trick the inherits function? Like
+  > c("class", "jobjRef").  That has worked for me in the past.
+  #+END_QUOTE
+
+  #+BEGIN_SRC R :noweb yes :tangle mutate-initializer.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<preamble>>
+      
+    new('jobjRef',
+        jobj=.External('RcreateObject',
+          'java/lang/Object'),
+        jclass='java/lang/Object')$hashCode()
+    
+    setRefClass('myjobjRef', contains='jobjRef')
+    
+    new('myjobjRef',
+        jobj=.External('RcreateObject',
+          'java/lang/Object'),
+        jclass='java/lang/Object')$hashCode()
+    
+    ## mi <- setRefClass('mutateInitializer',
+    ##                   contains='jobjRef',
+    ##                   methods=list(initialize=function() {
+    ##                     callSuper()
+    ##                     .self
+    ##                   }),
+    ##                   representation(jobj="externalptr", jclass="character"), prototype=list(jobj=.jzeroRef, jclass="java/lang/Object"), where=environment())
+    ## mi$methods(initialize=function() {
+    ##   callSuper()
+    ##   .self
+    ## })
+    ## mi$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+    ##            jclass='java/lang/Object')
+    ## mi$new()
+    
+    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    
+    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+    ##        jclass='java/lang/Object')
+    
+  #+END_SRC
+
+  #+BEGIN_SRC R :noweb yes :tangle mutate-jobjref-initializer.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    <<preamble>>
+      
+    ## new('jobjRef',
+    ##     jobj=.External('RcreateObject',
+    ##       'RInterfaceProxy',
+    ##       'TestInterface',
+    ##       to.hashmap(list(mogrify=function(string)
+    ##                       paste(string, 'mogrified', sep='-'),
+    ##                       tetradicSum=function(w, x, y, z)
+    ##                       sum(w, x, y, z),
+    ##                       multiplyInts=function(x, y)
+    ##                       as.integer(x * y)))),
+    ##     jclass='RInterfaceProxy')$newInstance()$tetradicSum(1, 2, 3, 4)
+    
+    ## i <- setRefClass('myjobjRef',
+    ##             contains='jobjRef'## ,
+    ##             ## methods=list(initialize=function() {
+    ##             ##   callSuper()
+    ##             ##   .self
+    ##             ## })
+    ##             )
+    ## inew <- new('myjobjRef',
+    ##           jobj=.External('RcreateObject',
+    ##             'java/lang/Object',
+    ##             PACKAGE='rJava'),
+    ##           jclass='java/lang/Object')
+    ## inew$methods(harro=function() 2)
+    ## ._java_valid_object <- function(a) {
+    ##   if (is(a, "jobjRef")) a 
+    ##   else if (is.null(a)) .jnull() else {
+    ##     cm <- match(class(a)[1], names(.class.to.jclass))
+    ##     if (!any(is.na(cm))) { 
+    ##         if (length(a) == 1) { 
+    ##             y <- .jnew(.class.to.jclass[cm], a)
+    ##             if (.class.to.jclass[cm] %in% .primitive.classes) attr(y, "primitive") <- TRUE
+    ##             y 
+    ##         } else .jarray(a, dispatch = FALSE)
+    ##     } else {
+    ##       stop("Sorry, parameter type `", cm ,"' is ambiguous or not supported.")
+    ##     }
+    ##   }
+    ## }
+    ## ._java_valid_objects_list <- function( ... )
+    ##   lapply(list(...), ._java_valid_object )
+    ## ._java_class <- function( x ){
+    ##   if (is.jnull(x)) { if (is(x,"jobjRef")) .jfindClass(x@jclass) else .jclassObject } else {
+    ##     if (._isPrimitiveReference(x)) .jfield(x, "Ljava/lang/Class;", "TYPE") else .jcall(x, "Ljava/lang/Class;", "getClass")
+    ##   }
+    ## }
+    ## ._java_class_list <- function( objects_list )
+    ##     lapply(objects_list, ._java_class )
+    ## inew <- .jcall("RJavaTools", "Ljava/lang/Object;", 
+    ##     "newInstance", .jfindClass('java/lang/Object'), 
+    ##     .jarray(._java_valid_objects_list(NULL),"java/lang/Object", dispatch = FALSE ), 
+    ##     .jarray(._java_class_list(._java_valid_objects_list(NULL)),"java/lang/Class", dispatch = FALSE ), 
+    ##     evalString = FALSE, evalArray = FALSE, use.true.class = TRUE )
+    ## .jcall('RJavaTools', 'Z', 'hasField', inew, 'harro')
+    ## new(J('java.lang.Object'))$hashCode()
+    
+    ## i <- setRefClass('myjobjRef',
+    ##             contains='jobjRef'## ,
+    ##             ## methods=list(initialize=function() {
+    ##             ##   callSuper()
+    ##             ##   .self
+    ##             ## })
+    ##             )
+    ## ## i$new()$methods('initialize')
+    ## i$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+    ##       jclass='java/lang/Object')$harro()
+    
+    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    
+    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+    ##        jclass='java/lang/Object')$hashCode()
+    ## ir <- setRefClass('jobjInterfaceRef', contains='jobjRef')
+    
+    ## ir$new(jobj=.External('RcreateObject', 'java/lang/Object', PACKAGE='rJava'),
+    ##        jclass='java/lang/Object')$hashCode()
+    
+    ## .jcall("RJavaTools", "Ljava/lang/Object;", 
+    ##     "newInstance", .jfindClass('java/lang/Object'), 
+    ##     .jarray(NULL,"java/lang/Object", dispatch = FALSE ), 
+    ##     .jarray(NULL,"java/lang/Class", dispatch = FALSE ), 
+    ##     evalString = FALSE, evalArray = FALSE, use.true.class = TRUE )
+  #+END_SRC
+* CANCELED refclass with =bQuote=
   CLOSED: [2011-05-10 Tue 20:52]
   - CLOSING NOTE [2011-05-10 Tue 20:53] \\
     Can't make bquote work with more complicated examples (e.g. nested
@@ -1536,3 +1597,47 @@
    slot as attribute for pointer; pass to a method, shouldn't know the
    difference; take the object returned from the ~RInterfaceProxy~,
    copy those slots into the reference class instance.
+** Mon May 23 13:44:40 PDT 2011
+   setJavaRefClass (proxy methods up through object; . . .),
+   setJavaInterfaceImplementation: pass it methods; redefine
+   initialize;
+
+   subclass: can just setRefClass; override only seen in R.
+
+   setJavaImplementation . . .
+
+   is there a ref class existing; and, if not, instantiate the parent.
+
+   setJII as a wrapper around setRefClass (with methods, fields, etc.)
+   calling setJavaRefClass. Common refClass as parent (equivalent to
+   jobjRef) which references the proxy (as a field).
+
+   setJII(impl, extends, [implemented interfaces])
+
+   ~extends~ results in infinite regress?
+
+   setJII wrapper around setRefClass (gains: implements(result of
+   setJavaRefClass)); get name of class.
+
+   shouldn't do callSuper, etc. some whiteboard-pseudo:
+
+   #+BEGIN_SRC org
+     ,- javaObject -> ref (jobjRef)
+     
+     ,- setJavaRefClass(javaClass [e.g. 'java.io.File'])
+     ,  - setJavaRefClass(getSuperClass(javaClass))
+     ,  - makeWrappers(localMethods)
+     ,  - setRefClass(...)
+     
+     ,- impl <- setRefClass(...) [deprecated]
+     
+     ,- setJavaImpl(implements, ...) [wrapper around setRefClass, basically,
+     ,  replete with `methods', `fields', etc.; whith the addition of
+     ,  `implements'.]
+     ,  - setRefClass(..., contains=implements)
+     
+     ,- [not sure what this refers to, frankly: the wrapping that
+     ,  setJavaRefClass does; or is it defunct?]
+     ,- addTrack = function(track)
+     ,  - .jcall(.self@proxy, 'addTrack', track@proxy)
+   #+END_SRC
