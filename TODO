@@ -1,4 +1,5 @@
 # -*- org -*-
+* TODO 
 * TODO use proper namespacing
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
@@ -17,6 +18,13 @@
 
   #+BEGIN_SRC R :tangle ascend-class-hierarchy.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
     <<preamble>>
+    
+    ## setRefClass('javaObject',
+    ##             fields='ref',
+    ##             methods=c(initialize=function(class, ...) {
+    ##               ref <<- new(J(class), ...)
+    ##               .self
+    ##             }))
     
     getJavaRefClass <- getRefClass
     
@@ -38,20 +46,22 @@
                                  declaredMethods),
                              names=declaredMethods)
                  setRefClass(className,
+                             ## contains='javaObject',
                              fields='ref',
                              methods=c(methods,
                                initialize=eval(substitute(function(...) {
+                                 ## callSuper(className, ...)
                                  ref <<- new(J(className), ...)
                                  .self
                                },
-                                 list(className=className)))),
-                             NULL)
+                                 list(className=className)))))
                })
     
     File <- setJavaRefClass('java.io.File')
     stopifnot(File$new('/tmp')$getPath() == '/tmp')
     
-    ## Object is automagically define.
+    ## java.lang.Object is automagically defined as the parent of
+    ## java.io.file.
     Object <- getJavaRefClass('java.lang.Object')
     stopifnot(typeof(Object$new()$hashCode()) == 'integer')
     
