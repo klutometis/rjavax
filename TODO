@@ -1,9 +1,138 @@
 # -*- org -*-
-* TODO 
+* TODO =setJavaImplementation= using =setJavaRefClass=
+  #+BEGIN_SRC R :tangle set-java-implementation.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    source('ascend-class-hierarchy.R')
+    
+    setJavaImplementation <-
+      function(implements, extends='java.lang.Object', ...) {
+        setRefClass(contains=extends,
+                    ## methods=c(initialize=function(...) {
+                    ## }),
+                    NULL)
+      }
+    
+    setJavaImplementation(implements='java.lang.Comparable',
+                          methods=c(compareTo=function(object) 0))
+    
+  #+END_SRC
 * TODO use proper namespacing
   =com/gene/rJavax=, etc.
 * TODO switch to ant instead of Makefiles
   can even use [[http://cran.r-project.org/web/packages/ant/index.html][ant]] (but it's really just a wrapper around =system=).
+* DONE debug
+  CLOSED: [2011-05-25 Wed 12:23]
+  =.ArgsEnv=
+
+  [[http://cran.r-project.org/doc/manuals/R-ints.html#Argument-evaluation][Argument evaluation]]:
+
+  #+BEGIN_QUOTE
+  The essential difference5 between special and builtin functions is
+  that the arguments of specials are not evaluated before the C code
+  is called, and those of builtins are. Note that being a
+  special/builtin is separate from being primitive or .Internal: quote
+  is a special primitive, + is a builtin primitive, cbind is a special
+  .Internal and grep is a builtin .Internal.
+  #+END_QUOTE
+
+  [[http://cran.r-project.org/doc/manuals/R-ints.html#Dot_002ddot_002ddot-arguments][Dot-dot-dot arguments]]:
+
+  #+BEGIN_QUOTE
+  The formals of a function with a ... argument represent that as a
+  single argument like any other argument, with tag the symbol
+  R_DotsSymbol. When the actual arguments are matched to the formals,
+  the value of the ... argument is of SEXPTYPE DOTSXP, a pairlist of
+  promises (as used for matched arguments) but distinguished by the
+  SEXPTYPE.
+
+  Special primitives may need to handle ... arguments: see for example
+  the internal code of switch in file src/main/builtin.c.
+  #+END_QUOTE
+
+  [[https://svn.r-project.org/R/trunk/src/main/builtin.c][switch]]:
+
+  #+BEGIN_QUOTE
+  This is a SPECIALSXP, so arguments need to be evaluated as needed.
+  And (see names.c) X=2, so it defaults to a visible value.
+  #+END_QUOTE
+
+  [[https://svn.r-project.org/R/trunk/src/main/names.c][names]]:
+  
+  #+BEGIN_QUOTE
+  - c-entry :: The name of the corresponding C function, actually
+               declared in ../include/Internal.h .  Convention:
+    - all start with "do\_",
+ 	- all return SEXP.
+ 	- all have argument list
+ 			 (SEXP call, SEXP op, SEXP args, SEXP env) 
+  - eval ::	= XYZ (three digits) --- where e.g. '1' means '001'
+    - X=1 says that we should force R_Visible off
+    - X=0 says that we should force R_Visible on
+    - X=2 says that we should switch R_Visible on but let the C code
+      update this.
+    - Y=1 says that this is an internal function which must be
+      accessed with a .Internal(.) call, any other value is accessible
+      directly and printed in R as ".Primitive(..)".
+    - Z=1 says evaluate arguments before calling (BUILTINSXP) and
+    - Z=0 says don't evaluate (SPECIALSXP).
+  - arity :: How many arguments are required/allowed; "-1" meaning
+             ``any''
+  #+END_QUOTE
+
+  #+BEGIN_SRC R :tangle debug.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    dyn.load('debug.so')
+    a <- 2
+    ## {function(...) .External('debug', ...)}(a, 3)
+    ## {function(...) .Internal('debug')}(a, 3)
+    ## str(.Primitive('debug')(function() 2, 2, 3))
+    .External('debug', a, 2)
+    
+    debug <- function(expression) {
+      cat(substitute(expression), expression, "\n")
+    }
+    
+    a <- 2
+    debug(a)    
+  #+END_SRC
+
+  #+BEGIN_SRC c :tangle debug.c
+    #include <R.h>
+    #include <Rinternals.h>
+    #include <R_ext/Print.h>
+    #include <R_ext/Rdynload.h>
+    
+    SEXP debug(SEXP args) {
+      args = CDR(args);
+      Rprintf("%s", args);
+      return R_NilValue;
+    }
+    
+    static const R_ExternalMethodDef ExternEntries[] = {
+        {"debug", (DL_FUNC) &do_debug, -1},
+        {NULL, NULL, 0}
+    };
+    
+    void R_init_debug(DllInfo *info)
+    {
+      R_registerRoutines(info, NULL, NULL, NULL, ExternEntries);
+    }
+  #+END_SRC
+
+  #+BEGIN_SRC sh :tangle debug.sh :shebang #!/usr/bin/env bash
+    R CMD SHLIB debug.c
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle debug-in-R.R :shebang #!/usr/local/bin/R --vanilla --slave -f 
+    ## Thanks, William Dunlap!
+    ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
+    debug <- function(...) {
+      promises <- as.list(substitute(list(...)))[-1]
+      str(structure(Map(eval, promises),
+                    names=Map(deparse, promises)))
+    }
+    
+    a <- 2
+    debug(a, a + a, (function() a + a)())
+  #+END_SRC
 * DONE ascending the class hierarchy
   CLOSED: [2011-05-24 Tue 11:42]
   [[http://download.oracle.com/javase/6/docs/api/java/lang/Class.html#getDeclaredMethods()][getDeclaredMethods]]:
@@ -17,53 +146,97 @@
   than [[declared-methods][publication]] (v. infra).
 
   #+BEGIN_SRC R :tangle ascend-class-hierarchy.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    <<preamble>>
+    library(rJava)
+    source('R/interface.R')
     
-    ## setRefClass('javaObject',
-    ##             fields='ref',
-    ##             methods=c(initialize=function(class, ...) {
-    ##               ref <<- new(J(class), ...)
-    ##               .self
-    ##             }))
+    .jinit(classpath=paste(c(Sys.glob('inst/java/*.jar'), 'src', 'tests'),
+             collapse=':'))
+    invisible(.jengine(TRUE))
+    
+    ## Thanks, William Dunlap!
+    ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
+    debug <- function(..., where=parent.frame()) {
+      promises <- as.list(substitute(list(...)))[-1]
+      str(structure(Map(function(promise)
+                        tryCatch(eval(promise, envir=where),
+                                 error=function(e) e),
+                        promises),
+                    names=Map(deparse, promises)))
+    }
+    
+    Delegate <-
+      setRefClass('Delegate',
+                  fields='object',
+                  contains='VIRTUAL',
+                  methods=c(initialize=function(class='java.lang.Object', ...) {
+                    debug(class)
+                    object <<- new(J(class), ...)
+                    .self
+                  }))
     
     getJavaRefClass <- getRefClass
     
     setJavaRefClass <- function(className)
       tryCatch(getJavaRefClass(className),
                error=function(e) {
-                 class <- J('java.lang.Class')$forName(className)
+                 class <- J('java.lang.Class')$forName(className)             
                  superclass <- class$getSuperclass()
-                 if (!is.null(superclass))
-                   setJavaRefClass(superclass$getName())
+                 ## if (!is.null(superclass))
+                 ##   setJavaRefClass(superclass$getName())
+                 contains <-
+                   if (is.null(superclass))
+                     'Delegate'
+                   else {
+                     superclassName <- superclass$getName()
+                     setJavaRefClass(superclassName)
+                     superclassName
+                   }
+                 ## debug(contains)
                  declaredMethods <-
                    Map(function(method) method$getName(),
                        as.list(class$getDeclaredMethods()))
                  methods <-
                    structure(Map(function(method)
+                                 ## Check for JavaObjects and extract the
+                                 ## ref; otherwise: pass through.
                                  eval(substitute(function(...)
-                                                 .jrcall(.self$ref, method, ...), 
+                                                 .jrcall(.self$ref, method, ...),
                                                  list(method=method))),
                                  declaredMethods),
                              names=declaredMethods)
                  setRefClass(className,
-                             ## contains='javaObject',
+                             ## contains='Delegate',
+                             contains=contains,
                              fields='ref',
                              methods=c(methods,
-                               initialize=eval(substitute(function(...) {
-                                 ## callSuper(className, ...)
-                                 ref <<- new(J(className), ...)
-                                 .self
+                                initialize=eval(substitute(function(...) {
+                                  ## callSuper(className, ...)
+                                  debug(className)
+                                  ref <<- new(J(className), ...)
+                                  .self
                                },
-                                 list(className=className)))))
+                                  list(className=className)))),
+                             )
                })
     
     File <- setJavaRefClass('java.io.File')
-    stopifnot(File$new('/tmp')$getPath() == '/tmp')
+    ## file <- File$new('/tmp')
+    ## file$hashCode()
+    ## file$ref$hashCode()
+    ## debug(typeof(File),
+    ##       class(File),
+    ##       mode(File),
+    ##       ls(File),
+    ##       attributes(File),
+    ##       File$className,
+    ##       typeof(file),
+    ##       class(file),
+    ##       attributes(file))
     
     ## java.lang.Object is automagically defined as the parent of
     ## java.io.file.
-    Object <- getJavaRefClass('java.lang.Object')
-    stopifnot(typeof(Object$new()$hashCode()) == 'integer')
+    ## Object <- getJavaRefClass('java.lang.Object')
+    ## stopifnot(typeof(Object$new()$hashCode()) == 'integer')
     
   #+END_SRC
 * DONE we appear to be doing something fundamentally wrong with refClasses
@@ -764,6 +937,17 @@
     .jinit(classpath=paste(c(Sys.glob('inst/java/*.jar'), 'src', 'tests'),
              collapse=':'))
     invisible(.jengine(TRUE))
+    
+    ## Thanks, William Dunlap!
+    ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
+    debug <- function(..., where=parent.frame()) {
+      promises <- as.list(substitute(list(...)))[-1]
+      str(structure(Map(function(promise)
+                        tryCatch(eval(promise, envir=where),
+                                 error=function(e) e),
+                        promises),
+                    names=Map(deparse, promises)))
+    }
     
   #+END_SRC
 * DONE reference class inheriting from =jobjRef=
@@ -1651,3 +1835,25 @@
      ,- addTrack = function(track)
      ,  - .jcall(.self@proxy, 'addTrack', track@proxy)
    #+END_SRC
+** Tue May 24 15:31:31 PDT 2011
+   When extends: need to override methods; "stop, not implemented."
+
+   Call a method on an instance without the dynamic lookup;
+   short-circuit the lookup up of overridden object. JNI level:
+   pointer to code and call it?
+
+   If it did get to the invocation handler, might be able to hack
+   it. Bytecode compilation.
+
+   R implementations of java.lang.Object.
+
+   Pure R implementations.
+
+   Delegate.
+
+   implements: list of strings or generator objects corresponding to
+   to-be-implemented Java interface.
+
+   Through setRefClass, name of the implementing refClass is
+   defined. ref no longer points to the delegate object, but the
+   proxy.
