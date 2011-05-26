@@ -7,6 +7,11 @@ source('R/interface.R')
          collapse=':'))
 invisible(.jengine(TRUE))
 
+## Note that these need to specified as e.g.
+## ‘options(error=utils::recover)’ in startup files such as
+## ‘.Rprofile’.
+options(error=dump.frames)
+
 ## Thanks, William Dunlap!
 ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
 debug <- function(..., where=parent.frame()) {
@@ -30,22 +35,28 @@ Delegate <-
 
 getJavaRefClass <- getRefClass
 
+hasMethod <- function(referent, method)
+  .jcall("RJavaTools",
+         "Z",
+         "hasMethod",
+         .jcast(referent, "java/lang/Object" ),
+         method)
+
 setJavaRefClass <- function(className)
   tryCatch(getJavaRefClass(className),
            error=function(e) {
              class <- J('java.lang.Class')$forName(className)             
              superclass <- class$getSuperclass()
-             ## if (!is.null(superclass))
-             ##   setJavaRefClass(superclass$getName())
              contains <-
                if (is.null(superclass))
-                 'Delegate'
+                 ## 'Delegate'
+                 NULL
                else {
                  superclassName <- superclass$getName()
                  setJavaRefClass(superclassName)
                  superclassName
                }
-             ## debug(contains)
+             debug(className, contains)
              declaredMethods <-
                Map(function(method) method$getName(),
                    as.list(class$getDeclaredMethods()))
@@ -53,41 +64,34 @@ setJavaRefClass <- function(className)
                structure(Map(function(method)
                              ## Check for JavaObjects and extract the
                              ## ref; otherwise: pass through.
-                             eval(substitute(function(...)
-                                             .jrcall(.self$ref, method, ...),
+                             eval(substitute(function(...) {
+                               ## Memoize this somewhere? Also: what
+                               ## to do when the method doesn't exist:
+                               ## aren't there legitimate cases to
+                               ## propagate the error?
+                               if (hasMethod(.self$ref, method))
+                                 .jrcall(.self$ref, method, ...)
+                             },
                                              list(method=method))),
                              declaredMethods),
                          names=declaredMethods)
              setRefClass(className,
-                         ## contains='Delegate',
                          contains=contains,
                          fields='ref',
                          methods=c(methods,
-                            initialize=eval(substitute(function(...) {
-                              ## callSuper(className, ...)
-                              debug(className)
+                           initialize=eval(substitute(function(...) {
                               ref <<- new(J(className), ...)
                               .self
                            },
-                              list(className=className)))),
-                         )
+                              list(className=className))),
+                           NULL)
+             )
            })
 
 File <- setJavaRefClass('java.io.File')
-## file <- File$new('/tmp')
-## file$hashCode()
-## file$ref$hashCode()
-## debug(typeof(File),
-##       class(File),
-##       mode(File),
-##       ls(File),
-##       attributes(File),
-##       File$className,
-##       typeof(file),
-##       class(file),
-##       attributes(file))
+stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
-## Object <- getJavaRefClass('java.lang.Object')
-## stopifnot(typeof(Object$new()$hashCode()) == 'integer')
+Object <- getJavaRefClass('java.lang.Object')
+stopifnot(typeof(Object$new()$hashCode()) == 'integer')
