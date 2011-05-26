@@ -231,19 +231,7 @@
                              names=declaredMethods)
                  setRefClass(className,
                              contains=contains,
-                             methods=methods
-                             ## fields='ref',
-                             ## methods=c(methods,
-                             ##   initialize=eval(substitute(function(...) {
-                             ##     ## ref <<- new(J(className), ...)
-                             ##     debug('harro', className, ...)
-                             ##     callSuper(className, ...)
-                             ##     .self
-                             ##   },
-                             ##     list(className=className))),
-                             ##   NULL)
-    
-                             )
+                             methods=methods)
                })
     
     File <- setJavaRefClass('java.io.File')
