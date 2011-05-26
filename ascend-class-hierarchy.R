@@ -101,7 +101,10 @@ setJavaRefClass <- function(className)
                                    else
                                      argument
                                  },
-                                     list(...))
+                                     ## Wow, dudes: list(...)
+                                     ## segfaults on niladic
+                                     ## evaluation; sweet!
+                                     c(...))
                                
                                ## Memoize this somewhere? Also: what
                                ## to do when the method doesn't exist:
@@ -136,7 +139,7 @@ setJavaRefClass <- function(className)
 File <- setJavaRefClass('java.io.File')
 ## Calling a Java method (the File-constructor) with a native R type
 ## (character):
-## stopifnot(File$new('/tmp')$getPath() == '/tmp')
+stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
