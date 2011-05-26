@@ -18,6 +18,17 @@ debug <- function(..., where=parent.frame()) {
   promises <- as.list(substitute(list(...)))[-1]
   ## If we could get e.g. the calling function
   ## str(sys.function(sys.parent(n=3)))
+  ##
+  ## In other words, I'd like this to look like:
+  ## 
+  ## Context (function, environment, etc.)
+  ##   expression-0 -> value-0
+  ##     [value-0 continued ...]
+  ##   expression-1 -> value-1
+  ##     [value-1 continued ...]
+  ##   ...
+  ##   expression-n -> value-n
+  ##     [value-n continued ...]
   str(structure(Map(function(promise)
                     tryCatch(eval(promise, envir=where),
                              error=function(e) e),
@@ -82,10 +93,16 @@ setJavaRefClass <- function(className)
 
              methods <-
                structure(Map(function(method)
-                             ## TODO: Check for JavaObjects and
-                             ## extract the ref; otherwise: pass
-                             ## through.
                              eval(substitute(function(...) {
+                               arguments <-
+                                 Map(function(argument) {
+                                   if (inherits(argument, 'java.lang.Object'))
+                                     argument$ref
+                                   else
+                                     argument
+                                 },
+                                     list(...))
+                               
                                ## Memoize this somewhere? Also: what
                                ## to do when the method doesn't exist:
                                ## aren't there legitimate cases to
@@ -104,7 +121,9 @@ setJavaRefClass <- function(className)
                                ## twice; could it be calling
                                ## finalize() on a methodless zombie?
                                if (hasMethod(.self$ref, method))
-                                 .jrcall(.self$ref, method, ...)
+                                 do.call(.jrcall, c(.self$ref,
+                                                    method,
+                                                    arguments))
                              },
                                              list(method=method))),
                              declaredMethods),
@@ -115,9 +134,16 @@ setJavaRefClass <- function(className)
            })
 
 File <- setJavaRefClass('java.io.File')
-stopifnot(File$new('/tmp')$getPath() == '/tmp')
+## Calling a Java method (the File-constructor) with a native R type
+## (character):
+## stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
 Object <- getJavaRefClass('java.lang.Object')
-stopifnot(typeof(Object$new()$hashCode()) == 'integer')
+o1 <- Object$new()
+o2 <- Object$new()
+## Calling a Java method with a javaRefClass (extraction of the ref
+## happens behind-the-scenes):
+stopifnot(o1$equals(o1))
+stopifnot(!o1$equals(o2))
