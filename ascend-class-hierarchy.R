@@ -17,7 +17,7 @@ options(error=dump.frames)
 debug <- function(..., where=parent.frame()) {
   promises <- as.list(substitute(list(...)))[-1]
   ## If we could get e.g. the calling function
-  str(sys.function(sys.parent(n=3)))
+  ## str(sys.function(sys.parent(n=3)))
   str(structure(Map(function(promise)
                     tryCatch(eval(promise, envir=where),
                              error=function(e) e),
@@ -27,10 +27,13 @@ debug <- function(..., where=parent.frame()) {
 
 Delegate <-
   setRefClass('Delegate',
-              fields='object',
-              methods=c(initialize=function(class='java.lang.Object', ...) {
-                debug(class)
-                object <<- new(J(class), ...)
+              fields=list(ref='jobjRef'),
+              methods=c(initialize=function(...) {
+                ## This bothers me; I realize it's the base-case in
+                ## our recursion: but why not allow java.lang.Object
+                ## to be the base-case?
+                if (class(.self) != 'Delegate')
+                  ref <<- new(J(class(.self)), ...)
                 .self
               }))
 
@@ -50,19 +53,31 @@ setJavaRefClass <- function(className)
            error=function(e) {
              class <- J('java.lang.Class')$forName(className)             
              superclass <- class$getSuperclass()
-             contains <-
+             superclassName <- 
                if (is.null(superclass))
                  'Delegate'
-                 ## NULL
-               else {
-                 superclassName <- superclass$getName()
-                 setJavaRefClass(superclassName)
-                 superclassName
-               }
-             debug(className, contains)
+               else
+                 superclass$getName()
+             
+             if (!is.null(superclass))
+               setJavaRefClass(superclassName)
+             
+             interfaces <- Map(function(interface) interface$getName(),
+                               as.list(class$getInterfaces()))
+
+             ## FIXME: this must also include the interfaces, sorted
+             ## lexicographically, iff the class explicitly implements
+             ## the interface (not through inheritance).
+
+             ## Can't do this yet, because the interface don't exist
+             ## as refClasses.
+             ## contains <- sort(unlist(c(superclassName, interfaces)))
+             contains <- superclassName
+
              declaredMethods <-
                Map(function(method) method$getName(),
                    as.list(class$getDeclaredMethods()))
+
              methods <-
                structure(Map(function(method)
                              ## TODO: Check for JavaObjects and
@@ -82,7 +97,11 @@ setJavaRefClass <- function(className)
                                ## creating a generator object).
                                ##
                                ## Why? No idea.
-                               if (hasMethod(.self$object, method))
+                               ##
+                               ## I notice that finalize() is called
+                               ## twice; could it be calling
+                               ## finalize() on a methodless zombie?
+                               if (hasMethod(.self$ref, method))
                                  .jrcall(.self$ref, method, ...)
                              },
                                              list(method=method))),
@@ -90,24 +109,25 @@ setJavaRefClass <- function(className)
                          names=declaredMethods)
              setRefClass(className,
                          contains=contains,
-                         fields='ref',
-                         methods=c(methods,
-                           initialize=eval(substitute(function(...) {
-                              ## ref <<- new(J(className), ...)
-                             debug('harro', className, ...)
-                             callSuper(className, ...)
-                              .self
-                           },
-                              list(className=className))),
-                           NULL)
-             )
+                         methods=methods
+                         ## fields='ref',
+                         ## methods=c(methods,
+                         ##   initialize=eval(substitute(function(...) {
+                         ##     ## ref <<- new(J(className), ...)
+                         ##     debug('harro', className, ...)
+                         ##     callSuper(className, ...)
+                         ##     .self
+                         ##   },
+                         ##     list(className=className))),
+                         ##   NULL)
+
+                         )
            })
 
 File <- setJavaRefClass('java.io.File')
-File$new()
-## stopifnot(File$new('/tmp')$getPath() == '/tmp')
+stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
-## Object <- getJavaRefClass('java.lang.Object')
-## stopifnot(typeof(Object$new()$hashCode()) == 'integer')
+Object <- getJavaRefClass('java.lang.Object')
+stopifnot(typeof(Object$new()$hashCode()) == 'integer')
