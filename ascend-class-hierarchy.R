@@ -16,6 +16,8 @@ options(error=dump.frames)
 ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
 debug <- function(..., where=parent.frame()) {
   promises <- as.list(substitute(list(...)))[-1]
+  ## If we could get e.g. the calling function
+  str(sys.function(sys.parent(n=3)))
   str(structure(Map(function(promise)
                     tryCatch(eval(promise, envir=where),
                              error=function(e) e),
@@ -26,7 +28,6 @@ debug <- function(..., where=parent.frame()) {
 Delegate <-
   setRefClass('Delegate',
               fields='object',
-              contains='VIRTUAL',
               methods=c(initialize=function(class='java.lang.Object', ...) {
                 debug(class)
                 object <<- new(J(class), ...)
@@ -35,6 +36,8 @@ Delegate <-
 
 getJavaRefClass <- getRefClass
 
+## Should we memoize this somewhere? Requires an expensive call into
+## Java.
 hasMethod <- function(referent, method)
   .jcall("RJavaTools",
          "Z",
@@ -49,8 +52,8 @@ setJavaRefClass <- function(className)
              superclass <- class$getSuperclass()
              contains <-
                if (is.null(superclass))
-                 ## 'Delegate'
-                 NULL
+                 'Delegate'
+                 ## NULL
                else {
                  superclassName <- superclass$getName()
                  setJavaRefClass(superclassName)
@@ -62,14 +65,24 @@ setJavaRefClass <- function(className)
                    as.list(class$getDeclaredMethods()))
              methods <-
                structure(Map(function(method)
-                             ## Check for JavaObjects and extract the
-                             ## ref; otherwise: pass through.
+                             ## TODO: Check for JavaObjects and
+                             ## extract the ref; otherwise: pass
+                             ## through.
                              eval(substitute(function(...) {
                                ## Memoize this somewhere? Also: what
                                ## to do when the method doesn't exist:
                                ## aren't there legitimate cases to
                                ## propagate the error?
-                               if (hasMethod(.self$ref, method))
+                               ##
+                               ## Anyway, the bizarre thing is that
+                               ## e.g. java.lang.Object will not have
+                               ## e.g. finalize() under certain
+                               ## conditions (namely,
+                               ## superclass-initialization when
+                               ## creating a generator object).
+                               ##
+                               ## Why? No idea.
+                               if (hasMethod(.self$object, method))
                                  .jrcall(.self$ref, method, ...)
                              },
                                              list(method=method))),
@@ -80,7 +93,9 @@ setJavaRefClass <- function(className)
                          fields='ref',
                          methods=c(methods,
                            initialize=eval(substitute(function(...) {
-                              ref <<- new(J(className), ...)
+                              ## ref <<- new(J(className), ...)
+                             debug('harro', className, ...)
+                             callSuper(className, ...)
                               .self
                            },
                               list(className=className))),
@@ -89,9 +104,10 @@ setJavaRefClass <- function(className)
            })
 
 File <- setJavaRefClass('java.io.File')
-stopifnot(File$new('/tmp')$getPath() == '/tmp')
+File$new()
+## stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
-Object <- getJavaRefClass('java.lang.Object')
-stopifnot(typeof(Object$new()$hashCode()) == 'integer')
+## Object <- getJavaRefClass('java.lang.Object')
+## stopifnot(typeof(Object$new()$hashCode()) == 'integer')
