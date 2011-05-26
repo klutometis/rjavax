@@ -189,8 +189,9 @@
                        as.list(class$getDeclaredMethods()))
                  methods <-
                    structure(Map(function(method)
-                                 ## Check for JavaObjects and extract the
-                                 ## ref; otherwise: pass through.
+                                 ## TODO: Check for JavaObjects and
+                                 ## extract the ref; otherwise: pass
+                                 ## through.
                                  eval(substitute(function(...) {
                                    ## Memoize this somewhere? Also: what
                                    ## to do when the method doesn't exist:
@@ -199,10 +200,12 @@
                                    ##
                                    ## Anyway, the bizarre thing is that
                                    ## e.g. java.lang.Object will not have
-                                   ## finalize() under certain conditions
-                                   ## (i.e. the initialization of a
-                                   ## superclass when creating a generator
-                                   ## object).
+                                   ## e.g. finalize() under certain
+                                   ## conditions (namely,
+                                   ## superclass-initialization when
+                                   ## creating a generator object).
+                                   ##
+                                   ## Why? No idea.
                                    if (hasMethod(.self$ref, method))
                                      .jrcall(.self$ref, method, ...)
                                  },
