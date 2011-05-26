@@ -32,7 +32,9 @@ Delegate <-
                 ## This bothers me; I realize it's the base-case in
                 ## our recursion: but why not allow java.lang.Object
                 ## to be the base-case?
-                if (class(.self) != 'Delegate')
+                class <- class(.self)
+                if (!(class == 'Delegate' ||
+                      J('java.lang.Class')$forName(class)$isInterface()))
                   ref <<- new(J(class(.self)), ...)
                 .self
               }))
@@ -65,14 +67,14 @@ setJavaRefClass <- function(className)
              interfaces <- Map(function(interface) interface$getName(),
                                as.list(class$getInterfaces()))
 
-             ## FIXME: this must also include the interfaces, sorted
+             ## setJavaRefClass on an interface, really? Apparently.
+             for (interface in interfaces)
+               setJavaRefClass(interface)
+
+             ## DONE: this must also include the interfaces, sorted
              ## lexicographically, iff the class explicitly implements
              ## the interface (not through inheritance).
-
-             ## Can't do this yet, because the interface don't exist
-             ## as refClasses.
-             ## contains <- sort(unlist(c(superclassName, interfaces)))
-             contains <- superclassName
+             contains <- sort(unlist(c(superclassName, interfaces)))
 
              declaredMethods <-
                Map(function(method) method$getName(),

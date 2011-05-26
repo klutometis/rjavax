@@ -133,7 +133,11 @@
     a <- 2
     debug(a, a + a, (function() a + a)())
   #+END_SRC
-* TODO ascending the class hierarchy
+* DONE ascending the class hierarchy
+  CLOSED: [2011-05-26 Thu 15:26]
+  - CLOSING NOTE [2011-05-26 Thu 15:26] \\
+    I'd like to get rid of Delegate, though, and have java.lang.Object be
+    the base case.
   [[http://download.oracle.com/javase/6/docs/api/java/lang/Class.html#getDeclaredMethods()][getDeclaredMethods]]:
 
   #+BEGIN_QUOTE
@@ -154,7 +158,9 @@
                     ## This bothers me; I realize it's the base-case in
                     ## our recursion: but why not allow java.lang.Object
                     ## to be the base-case?
-                    if (class(.self) != 'Delegate')
+                    class <- class(.self)
+                    if (!(class == 'Delegate' ||
+                          J('java.lang.Class')$forName(class)$isInterface()))
                       ref <<- new(J(class(.self)), ...)
                     .self
                   }))
@@ -187,14 +193,14 @@
                  interfaces <- Map(function(interface) interface$getName(),
                                    as.list(class$getInterfaces()))
     
-                 ## FIXME: this must also include the interfaces, sorted
+                 ## setJavaRefClass on an interface, really? Apparently.
+                 for (interface in interfaces)
+                   setJavaRefClass(interface)
+    
+                 ## DONE: this must also include the interfaces, sorted
                  ## lexicographically, iff the class explicitly implements
                  ## the interface (not through inheritance).
-    
-                 ## Can't do this yet, because the interface don't exist
-                 ## as refClasses.
-                 ## contains <- sort(unlist(c(superclassName, interfaces)))
-                 contains <- superclassName
+                 contains <- sort(unlist(c(superclassName, interfaces)))
     
                  declaredMethods <-
                    Map(function(method) method$getName(),
