@@ -14,6 +14,9 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
+## TODO: We need to add a specific object to the signature here, don't
+## we? Might need to use `delegate' for interfaces, `ref' for Java
+## objects.
 delegateMethods <- function(methods)
   structure(Map(function(method)
                 eval(substitute(function(...) {

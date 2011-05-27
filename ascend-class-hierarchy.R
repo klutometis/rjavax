@@ -14,10 +14,13 @@ options(error=dump.frames)
 
 ## Thanks, William Dunlap!
 ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
+##
+## Have a parameter which specifies how deep to list the call stack,
+## negative or non-number (e.g. boolean) being whole thing?
 debug <- function(..., where=parent.frame()) {
   promises <- as.list(substitute(list(...)))[-1]
+
   ## If we could get e.g. the calling function
-  ## str(sys.function(sys.parent(n=3)))
   ##
   ## In other words, I'd like this to look like:
   ## 
@@ -29,11 +32,34 @@ debug <- function(..., where=parent.frame()) {
   ##   ...
   ##   expression-n -> value-n
   ##     [value-n continued ...]
-  str(structure(Map(function(promise)
-                    tryCatch(eval(promise, envir=where),
-                             error=function(e) e),
-                    promises),
-                names=Map(deparse, promises)))
+  (cat.calls <- function(calls, depth=1) {
+    if (length(calls)) {
+      cat.calls(calls[-1], depth + 1)
+      cat(sprintf('%s. %s\n',
+                  depth,
+                  paste(deparse(calls[[1]]),
+                        collapse='\n')))
+    }
+  })(as.list(eval(sys.calls(), parent.frame())))
+
+  ## str(structure(Map(function(promise)
+  ##                   tryCatch(eval(promise, envir=where),
+  ##                            error=function(e) e),
+  ##                   promises),
+  ##               names=Map(deparse, promises)))
+  (cat.values <- function(expressions, values) {
+    if (length(expressions)) {
+      cat(sprintf('  %s -> %s',
+                  expressions[[1]],
+                  paste(capture.output(str(values[[1]])),
+                        collapse='\n   ')),
+          '\n')
+    }
+  })(Map(deparse, promises),
+     Map(function(promise)
+         tryCatch(eval(promise, envir=where),
+                  error=function(e) e),
+         promises))
 }
 
 Delegate <-

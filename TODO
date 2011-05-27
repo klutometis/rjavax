@@ -999,7 +999,7 @@
 * DONE package preamble for testing
   CLOSED: [2011-04-13 Wed 12:38]
   #+srcname: preamble
-  #+BEGIN_SRC R
+  #+BEGIN_SRC R :tangle preamble.R
     library(rJava)
     source('R/interface.R')
     
@@ -1014,10 +1014,13 @@
     
     ## Thanks, William Dunlap!
     ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
+    ##
+    ## Have a parameter which specifies how deep to list the call stack,
+    ## negative or non-number (e.g. boolean) being whole thing?
     debug <- function(..., where=parent.frame()) {
       promises <- as.list(substitute(list(...)))[-1]
+    
       ## If we could get e.g. the calling function
-      ## str(sys.function(sys.parent(n=3)))
       ##
       ## In other words, I'd like this to look like:
       ## 
@@ -1029,12 +1032,71 @@
       ##   ...
       ##   expression-n -> value-n
       ##     [value-n continued ...]
-      str(structure(Map(function(promise)
-                        tryCatch(eval(promise, envir=where),
-                                 error=function(e) e),
-                        promises),
-                    names=Map(deparse, promises)))
+      (cat.calls <- function(calls, depth=1) {
+        if (length(calls)) {
+          cat.calls(calls[-1], depth + 1)
+          cat(sprintf('%s. %s\n',
+                      depth,
+                      paste(deparse(calls[[1]]),
+                            collapse='\n')))
+        }
+      })(as.list(eval(sys.calls(), parent.frame())))
+    
+      ## str(structure(Map(function(promise)
+      ##                   tryCatch(eval(promise, envir=where),
+      ##                            error=function(e) e),
+      ##                   promises),
+      ##               names=Map(deparse, promises)))
+      (cat.values <- function(expressions, values) {
+        if (length(expressions)) {
+          cat(sprintf('  %s -> %s',
+                      expressions[[1]],
+                      paste(capture.output(str(values[[1]])),
+                            collapse='\n   ')),
+              '\n')
+        }
+      })(Map(deparse, promises),
+         Map(function(promise)
+             tryCatch(eval(promise, envir=where),
+                      error=function(e) e),
+             promises))
     }
+    
+  #+END_SRC
+
+  #+BEGIN_SRC R :tangle debug-context.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    source('preamble.R')
+    
+    debug(2)
+    ## debug(sys.call(1))
+    ## debug(sys.status())
+    ## debug(sys.function())
+    
+    (function() {
+      ## debug(sys.call(1))
+      ## debug(sys.status())
+      ## debug(sys.function())
+      debug(2)
+    })()
+    
+    f <- function() {
+      ## debug(sys.call(1))
+      ## debug(sys.status())
+      ## for (i in 0:length(sys.frames())) {
+      ##   cat(ls(sys.frame(i)))
+      ## }
+      ## debug(attributes(parent.frame()),
+      ##       parent.frame(),
+      ##       ls(parent.frame()))
+      ## debug(sys.function(3))
+      ## for (frame in as.list(sys.frames())) {
+      ##   str('harro')
+      ##   str(attributes(frame))
+      ## }
+      debug(2)
+    }
+    
+    f()
     
   #+END_SRC
 * DONE reference class inheriting from =jobjRef=
