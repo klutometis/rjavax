@@ -3,16 +3,46 @@
   #+BEGIN_SRC R :tangle set-java-implementation.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     source('ascend-class-hierarchy.R')
     
-    setJavaImplementation <-
-      function(implements, extends='java.lang.Object', ...) {
-        setRefClass(contains=extends,
-                    ## methods=c(initialize=function(...) {
-                    ## }),
-                    NULL)
-      }
+    setJavaImplementation <- function(...,
+                                      methods=NULL,
+                                      contains=NULL,
+                                      extends='java.lang.Object',
+                                      implements) {
+      for (implement in implements)
+        setJavaRefClass(implement)
     
-    setJavaImplementation(implements='java.lang.Comparable',
-                          methods=c(compareTo=function(object) 0))
+      setRefClass(...,
+                  contains=c(contains,
+                    extends,
+                    implements),
+                  fields='proxy',
+                  methods=c(methods,
+                    initialize=eval(substitute(function(...) {
+                      callSuper(...)
+                      proxy <<- interfaceProxy(implements, .self)
+                      .self
+                      },
+                      list(implements=implements)))))
+    }
+    
+    Comparable <-
+      setJavaImplementation('Comparable',
+                            implements='java.lang.Comparable',
+                            methods=c(compareTo=function(object) as.integer(0)))
+    
+    OverriddenComparable <-
+      setJavaImplementation('OverriddenComparable',
+                            implements='java.lang.Comparable',
+                            methods=c(compareTo=function(object) as.integer(0),
+                              hashCode=function() -1))
+    
+    comparable <- Comparable$new()
+    comparable$compareTo(Object$new())
+    comparable$hashCode()
+    
+    overriddenComparable <- OverriddenComparable$new()
+    overriddenComparable$hashCode()
+    overriddenComparable$proxy$compareTo(Object$new()$ref)
     
   #+END_SRC
 * TODO use proper namespacing
@@ -158,6 +188,8 @@
                     ## This bothers me; I realize it's the base-case in
                     ## our recursion: but why not allow java.lang.Object
                     ## to be the base-case?
+    
+                    ## Do this.
                     class <- class(.self)
                     if (!(class == 'Delegate' ||
                           J('java.lang.Class')$forName(class)$isInterface()))
@@ -183,11 +215,12 @@
                  superclass <- class$getSuperclass()
                  superclassName <- 
                    if (is.null(superclass))
+                     ## NULL
                      'Delegate'
                    else
                      superclass$getName()
                  
-                 if (!is.null(superclass))
+                 if (!is.null(superclass)) 
                    setJavaRefClass(superclassName)
                  
                  interfaces <- Map(function(interface) interface$getName(),
@@ -211,7 +244,8 @@
                                  eval(substitute(function(...) {
                                    arguments <-
                                      Map(function(argument) {
-                                       if (inherits(argument, 'java.lang.Object'))
+                                       if (inherits(argument,
+                                                    'java.lang.Object'))
                                          argument$ref
                                        else
                                          argument
@@ -247,8 +281,15 @@
                                  declaredMethods),
                              names=declaredMethods)
                  setRefClass(className,
+                             fields=list(ref='jobjRef'),
                              contains=contains,
-                             methods=methods)
+                             methods=c(methods,
+                               initialize=eval(substitute(function(...) {
+                                 if (!J('java.lang.Class')$forName(className)$isInterface())
+                                   ref <<- new(J(className), ...)
+                                 .self
+                                 },
+                                 list(className=className)))))
                })
     
     File <- setJavaRefClass('java.io.File')

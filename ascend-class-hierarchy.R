@@ -43,6 +43,8 @@ Delegate <-
                 ## This bothers me; I realize it's the base-case in
                 ## our recursion: but why not allow java.lang.Object
                 ## to be the base-case?
+
+                ## Do this.
                 class <- class(.self)
                 if (!(class == 'Delegate' ||
                       J('java.lang.Class')$forName(class)$isInterface()))
@@ -68,11 +70,12 @@ setJavaRefClass <- function(className)
              superclass <- class$getSuperclass()
              superclassName <- 
                if (is.null(superclass))
+                 ## NULL
                  'Delegate'
                else
                  superclass$getName()
              
-             if (!is.null(superclass))
+             if (!is.null(superclass)) 
                setJavaRefClass(superclassName)
              
              interfaces <- Map(function(interface) interface$getName(),
@@ -96,7 +99,8 @@ setJavaRefClass <- function(className)
                              eval(substitute(function(...) {
                                arguments <-
                                  Map(function(argument) {
-                                   if (inherits(argument, 'java.lang.Object'))
+                                   if (inherits(argument,
+                                                'java.lang.Object'))
                                      argument$ref
                                    else
                                      argument
@@ -132,8 +136,15 @@ setJavaRefClass <- function(className)
                              declaredMethods),
                          names=declaredMethods)
              setRefClass(className,
+                         fields=list(ref='jobjRef'),
                          contains=contains,
-                         methods=methods)
+                         methods=c(methods,
+                           initialize=eval(substitute(function(...) {
+                             if (!J('java.lang.Class')$forName(className)$isInterface())
+                               ref <<- new(J(className), ...)
+                             .self
+                             },
+                             list(className=className)))))
            })
 
 File <- setJavaRefClass('java.io.File')

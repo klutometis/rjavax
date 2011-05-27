@@ -14,6 +14,48 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
+delegateMethods <- function(methods)
+  structure(Map(function(method)
+                eval(substitute(function(...) {
+                  arguments <-
+                    Map(function(argument) {
+                      if (inherits(argument,
+                                   'java.lang.Object'))
+                        argument$ref
+                      else
+                        argument
+                    },
+                        ## Wow, dudes: list(...)
+                        ## segfaults on niladic
+                        ## evaluation; sweet!
+                        c(...))
+                               
+                  ## Memoize this somewhere? Also: what
+                  ## to do when the method doesn't exist:
+                  ## aren't there legitimate cases to
+                  ## propagate the error?
+                  ##
+                  ## Anyway, the bizarre thing is that
+                  ## e.g. java.lang.Object will not have
+                  ## e.g. finalize() under certain
+                  ## conditions (namely,
+                  ## superclass-initialization when
+                  ## creating a generator object).
+                  ##
+                  ## Why? No idea.
+                  ##
+                  ## I notice that finalize() is called
+                  ## twice; could it be calling
+                  ## finalize() on a methodless zombie?
+                  if (hasMethod(.self$ref, method))
+                    do.call(.jrcall, c(.self$ref,
+                                       method,
+                                       arguments))
+                },
+                                list(method=method))),
+                methods),
+            names=methods)
+
 proxyMethods <- function(class) {
   method.names <- unique(Map(function(method) method$getName(),
                              as.list(J('java.lang.Class')
