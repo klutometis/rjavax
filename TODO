@@ -20,6 +20,7 @@
                     initialize=eval(substitute(function(...) {
                       callSuper(...)
                       proxy <<- interfaceProxy(implements, .self)
+                      debug(.self, proxy)
                       .self
                       },
                       list(implements=implements)))))
@@ -1061,6 +1062,8 @@
                       paste(capture.output(str(values[[1]])),
                             collapse='\n   ')),
               '\n')
+          cat.values(expressions[-1],
+                     values[-1])
         }
       }
       cat.values(expressions, values)

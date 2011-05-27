@@ -61,6 +61,8 @@ debug <- function(...,
                   paste(capture.output(str(values[[1]])),
                         collapse='\n   ')),
           '\n')
+      cat.values(expressions[-1],
+                 values[-1])
     }
   }
   cat.values(expressions, values)
