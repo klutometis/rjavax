@@ -17,9 +17,11 @@ options(error=dump.frames)
 ##
 ## Have a parameter which specifies how deep to list the call stack,
 ## negative or non-number (e.g. boolean) being whole thing?
-debug <- function(..., where=parent.frame()) {
-  promises <- as.list(substitute(list(...)))[-1]
-
+##
+## Also: an environment inspecting tool (which default to identity)?
+debug <- function(...,
+                  inspect.environment=format,
+                  where=parent.frame()) {
   ## If we could get e.g. the calling function
   ##
   ## In other words, I'd like this to look like:
@@ -32,22 +34,27 @@ debug <- function(..., where=parent.frame()) {
   ##   ...
   ##   expression-n -> value-n
   ##     [value-n continued ...]
-  (cat.calls <- function(calls, depth=1) {
+  cat(sprintf('Environment: %s\n',
+              inspect.environment(where)))
+  calls <- as.list(eval(sys.calls(), envir=where))
+  cat.calls <- function(calls, depth=1) {
     if (length(calls)) {
       cat.calls(calls[-1], depth + 1)
-      cat(sprintf('%s. %s\n',
+      cat(sprintf('Call %s: %s\n',
                   depth,
                   paste(deparse(calls[[1]]),
-                        collapse='\n')))
+                        collapse='\n  + ')))
     }
-  })(as.list(eval(sys.calls(), parent.frame())))
+  }
+  cat.calls(calls[-length(calls)])
 
-  ## str(structure(Map(function(promise)
-  ##                   tryCatch(eval(promise, envir=where),
-  ##                            error=function(e) e),
-  ##                   promises),
-  ##               names=Map(deparse, promises)))
-  (cat.values <- function(expressions, values) {
+  promises <- as.list(substitute(list(...)))[-1]
+  expressions <- Map(deparse, promises)
+  values <- Map(function(promise)
+                tryCatch(eval(promise, envir=where),
+                         error=function(e) e),
+                promises)
+  cat.values <- function(expressions, values) {
     if (length(expressions)) {
       cat(sprintf('  %s -> %s',
                   expressions[[1]],
@@ -55,11 +62,8 @@ debug <- function(..., where=parent.frame()) {
                         collapse='\n   ')),
           '\n')
     }
-  })(Map(deparse, promises),
-     Map(function(promise)
-         tryCatch(eval(promise, envir=where),
-                  error=function(e) e),
-         promises))
+  }
+  cat.values(expressions, values)
 }
 
 Delegate <-

@@ -1017,9 +1017,11 @@
     ##
     ## Have a parameter which specifies how deep to list the call stack,
     ## negative or non-number (e.g. boolean) being whole thing?
-    debug <- function(..., where=parent.frame()) {
-      promises <- as.list(substitute(list(...)))[-1]
-    
+    ##
+    ## Also: an environment inspecting tool (which default to identity)?
+    debug <- function(...,
+                      inspect.environment=format,
+                      where=parent.frame()) {
       ## If we could get e.g. the calling function
       ##
       ## In other words, I'd like this to look like:
@@ -1032,22 +1034,27 @@
       ##   ...
       ##   expression-n -> value-n
       ##     [value-n continued ...]
-      (cat.calls <- function(calls, depth=1) {
+      cat(sprintf('Environment: %s\n',
+                  inspect.environment(where)))
+      calls <- as.list(eval(sys.calls(), envir=where))
+      cat.calls <- function(calls, depth=1) {
         if (length(calls)) {
           cat.calls(calls[-1], depth + 1)
-          cat(sprintf('%s. %s\n',
+          cat(sprintf('Call %s: %s\n',
                       depth,
                       paste(deparse(calls[[1]]),
-                            collapse='\n')))
+                            collapse='\n  + ')))
         }
-      })(as.list(eval(sys.calls(), parent.frame())))
+      }
+      cat.calls(calls[-length(calls)])
     
-      ## str(structure(Map(function(promise)
-      ##                   tryCatch(eval(promise, envir=where),
-      ##                            error=function(e) e),
-      ##                   promises),
-      ##               names=Map(deparse, promises)))
-      (cat.values <- function(expressions, values) {
+      promises <- as.list(substitute(list(...)))[-1]
+      expressions <- Map(deparse, promises)
+      values <- Map(function(promise)
+                    tryCatch(eval(promise, envir=where),
+                             error=function(e) e),
+                    promises)
+      cat.values <- function(expressions, values) {
         if (length(expressions)) {
           cat(sprintf('  %s -> %s',
                       expressions[[1]],
@@ -1055,11 +1062,8 @@
                             collapse='\n   ')),
               '\n')
         }
-      })(Map(deparse, promises),
-         Map(function(promise)
-             tryCatch(eval(promise, envir=where),
-                      error=function(e) e),
-             promises))
+      }
+      cat.values(expressions, values)
     }
     
   #+END_SRC
@@ -1068,32 +1072,16 @@
     source('preamble.R')
     
     debug(2)
-    ## debug(sys.call(1))
-    ## debug(sys.status())
-    ## debug(sys.function())
     
     (function() {
-      ## debug(sys.call(1))
-      ## debug(sys.status())
-      ## debug(sys.function())
       debug(2)
     })()
     
     f <- function() {
-      ## debug(sys.call(1))
-      ## debug(sys.status())
-      ## for (i in 0:length(sys.frames())) {
-      ##   cat(ls(sys.frame(i)))
-      ## }
-      ## debug(attributes(parent.frame()),
-      ##       parent.frame(),
-      ##       ls(parent.frame()))
-      ## debug(sys.function(3))
-      ## for (frame in as.list(sys.frames())) {
-      ##   str('harro')
-      ##   str(attributes(frame))
-      ## }
-      debug(2)
+      g <- function()
+        debug(2)
+    
+      g()
     }
     
     f()
