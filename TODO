@@ -3,6 +3,15 @@
   #+BEGIN_SRC R :tangle set-java-implementation.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     source('ascend-class-hierarchy.R')
     
+    dollarsToJava <- function(refClass, method)
+      toJava(do.call(`$`, list(refClass, method)))
+    
+    interfaceProxy <- function(interface, implementation)
+      new(J('RInterfaceProxy'),
+          interface,
+          toJava(dollarsToJava),
+          toJava(implementation))$newInstance()
+    
     setJavaImplementation <- function(...,
                                       methods=NULL,
                                       contains=NULL,
@@ -11,19 +20,36 @@
       for (implement in implements)
         setJavaRefClass(implement)
     
+      delegate <- getJavaRefClass(extends)$new()
+    
+      delegateMethods <-
+        Map(function(method) method$getName(),
+            as.list(J('java.lang.Class')$forName(extends)$getMethods()))
+    
+      delegateMethods <-
+        structure(Map(function(delegateMethod)
+                      eval(substitute(function(...) {
+                        do.call(`$`, list(delegate, delegateMethod))(...)
+                      },
+                                      list(delegate=delegate,
+                                           delegateMethod=delegateMethod))),
+                      delegateMethods),
+                  names=delegateMethods)
+    
       setRefClass(...,
                   contains=c(contains,
                     extends,
                     implements),
-                  fields='proxy',
-                  methods=c(methods,
+                  fields=c(delegate='jobjRef'),
+                  methods=c(delegateMethods,
+                    methods,
                     initialize=eval(substitute(function(...) {
+                      assign('implements', implements, .self)
                       callSuper(...)
-                      proxy <<- interfaceProxy(implements, .self)
-                      debug(.self, proxy)
                       .self
-                      },
-                      list(implements=implements)))))
+                    },
+                      list(implements=implements,
+                           delegateMethods=delegateMethods)))))
     }
     
     Comparable <-
@@ -39,11 +65,13 @@
     
     comparable <- Comparable$new()
     comparable$compareTo(Object$new())
+    ## Wow: hashCode() and ref$hashCode() yield different results!
     comparable$hashCode()
+    comparable$ref$hashCode()
     
     overriddenComparable <- OverriddenComparable$new()
     overriddenComparable$hashCode()
-    overriddenComparable$proxy$compareTo(Object$new()$ref)
+    ## overriddenComparable$ref$compareTo(Object$new())
     
   #+END_SRC
 * TODO use proper namespacing
@@ -180,11 +208,13 @@
   than [[declared-methods][publication]] (v. infra).
 
   #+BEGIN_SRC R :tangle ascend-class-hierarchy.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    <<preamble>>
+    library(functional)
+    source('preamble.R')
     
     Delegate <-
       setRefClass('Delegate',
-                  fields=list(ref='jobjRef'),
+                  fields=list(ref='jobjRef',
+                    implements='character'),
                   methods=c(initialize=function(...) {
                     ## This bothers me; I realize it's the base-case in
                     ## our recursion: but why not allow java.lang.Object
@@ -192,11 +222,15 @@
     
                     ## Do this.
                     class <- class(.self)
-                    if (!(class == 'Delegate' ||
-                          J('java.lang.Class')$forName(class)$isInterface()))
-                      ref <<- new(J(class(.self)), ...)
+                    if (!(class == 'Delegate'))
+                      if (J('java.lang.Class')$forName(class)$isInterface()) {
+                        if (length(.self$implements))
+                          ref <<- interfaceProxy(.self$implements, .self)
+                      } else
+                        ref <<- new(J(class(.self)), ...)
                     .self
-                  }))
+                  })
+                  )
     
     getJavaRefClass <- getRefClass
     
@@ -245,10 +279,26 @@
                                  eval(substitute(function(...) {
                                    arguments <-
                                      Map(function(argument) {
-                                       if (inherits(argument,
-                                                    'java.lang.Object'))
+                                       if (inherits(argument, 'java.lang.Object')) {
+                                         ## Controversy starts here: do we
+                                         ## take the ref or the proxy?
+                                         ## Maybe that's why we can't have
+                                         ## refs and proxies; in Java
+                                         ## they're one and the same.
+                                         ##
+                                         ## Even if we have an interface
+                                         ## with a ref; there's the
+                                         ## problem of whether or not to
+                                         ## take the object or the ref,
+                                         ## isn't there?
+                                         ##
+                                         ## No; let's take the ref, and
+                                         ## delegate the functions (if
+                                         ## need be) to a delegate; the
+                                         ## delegate can be invisible,
+                                         ## can't it?
                                          argument$ref
-                                       else
+                                       } else
                                          argument
                                      },
                                          ## Wow, dudes: list(...)
@@ -273,6 +323,15 @@
                                    ## I notice that finalize() is called
                                    ## twice; could it be calling
                                    ## finalize() on a methodless zombie?
+                                   ##
+                                   ## Is it problematic that object doesn't change?
+                                   ## What if they change the ref on the class? Let's
+                                   ## make object a thunk.
+                                   debug(.self,
+                                         .self$ref,
+                                         method,
+                                         arguments,
+                                         call.stack=FALSE)
                                    if (hasMethod(.self$ref, method))
                                      do.call(.jrcall, c(.self$ref,
                                                         method,
@@ -281,16 +340,23 @@
                                                  list(method=method))),
                                  declaredMethods),
                              names=declaredMethods)
+    
                  setRefClass(className,
                              fields=list(ref='jobjRef'),
-                             contains=contains,
-                             methods=c(methods,
-                               initialize=eval(substitute(function(...) {
-                                 if (!J('java.lang.Class')$forName(className)$isInterface())
-                                   ref <<- new(J(className), ...)
-                                 .self
-                                 },
-                                 list(className=className)))))
+                             contains=contains
+                             ## methods=c(methods,
+                             ##   initialize=eval(substitute(function(...) {
+                             ##     debug(className,
+                             ##           list(...),
+                             ##           call.stack=FALSE)
+                             ##     if (J('java.lang.Class')$forName(className)$isInterface())
+                             ##       ref <<- interfaceProxy(.self$implements, .self)
+                             ##     else
+                             ##       ref <<- new(J(className), ...)
+                             ##     .self
+                             ##   },
+                             ##     list(className=className))))
+                             )
                })
     
     File <- setJavaRefClass('java.io.File')
@@ -1016,9 +1082,11 @@
     ## Thanks, William Dunlap!
     ## <https://stat.ethz.ch/pipermail/r-devel/2011-May/061098.html>
     ##
-    ## Have a parameter which specifies how deep to list the call stack
-    ## (top down, of course), negative or non-number (e.g. boolean) being
-    ## the whole thing?
+    ## Have a parameter which specifies how deep to list the call stack,
+    ## negative or non-number (e.g. boolean) being the whole thing?
+    ## Chicken implements it followingly: n deletes the n most recent
+    ## entries; this defaults, currently, to 1 (avoid the actual call to
+    ## debug).
     ##
     ## Also: an environment inspecting tool (which default to identity)?
     ##
@@ -1027,8 +1095,15 @@
     ##
     ## Also: output and debug are interwoven; what about storing up the
     ## debug and outputting it at the end? What about conditions?
+    ##
+    ## Should be able to pass some things to `str' when e.g. `str' elides
+    ## list elements.
+    ##
+    ## Need better condition-handling (just do the message and call
+    ## manually); take a look at the default condition-handling display.
     debug <- function(...,
-                      inspect.environment=format,
+                      environment=TRUE,
+                      call.stack=TRUE,
                       where=parent.frame()) {
       ## If we could get e.g. the calling function
       ##
@@ -1042,20 +1117,22 @@
       ##   ...
       ##   expression-n -> value-n
       ##     [value-n continued ...]
-      cat(sprintf('%s\n',
-                  inspect.environment(where)))
-      calls <- as.list(eval(sys.calls(), envir=where))
-      cat.calls <- function(calls, depth=1) {
-        if (length(calls)) {
-          cat.calls(calls[-1], depth + 1)
-          cat(sprintf('%s: %s\n',
-                      depth,
-                      paste(deparse(calls[[1]]),
-                            collapse='\n  + ')))
+      if (environment)
+        cat(sprintf('%s\n', format(where)))
+      if (call.stack) {
+        calls <- as.list(eval(sys.calls(), envir=where))
+        cat.calls <- function(calls, depth=1) {
+          if (length(calls)) {
+            cat.calls(calls[-1], depth + 1)
+            cat(sprintf('%s: %s\n',
+                        depth,
+                        paste(deparse(calls[[1]]),
+                              collapse='\n  + ')))
+          }
         }
+        cat.calls(calls[-length(calls)])
       }
-      cat.calls(calls[-length(calls)])
-    
+      
       promises <- as.list(substitute(list(...)))[-1]
       expressions <- Map(deparse, promises)
       values <- Map(function(promise)
