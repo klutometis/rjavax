@@ -2,6 +2,7 @@
 
 source('ascend-class-hierarchy.R')
 
+### FIXME: why can this not just be `$`(refClass, method)
 dollarsToJava <- function(refClass, method)
   toJava(do.call(`$`, list(refClass, method)))
 
@@ -11,6 +12,10 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
+### FIXME: we cannot extend anything else but java.lang.Object for now
+### Do we even want the argument? If we do want it, we need to check
+### it, and it should probably be the last argument.
+### FIXME: we need to check that a method is provided for each interface method
 setJavaImplementation <- function(...,
                                   methods=NULL,
                                   contains=NULL,
@@ -28,6 +33,7 @@ setJavaImplementation <- function(...,
   delegateMethods <-
     structure(Map(function(delegateMethod)
                   eval(substitute(function(...) {
+                    ### again, shouldn't `$`(delegate, delegateMethod) work?
                     do.call(`$`, list(delegate, delegateMethod))(...)
                   },
                                   list(delegate=delegate,
@@ -43,6 +49,7 @@ setJavaImplementation <- function(...,
               methods=c(delegateMethods,
                 methods,
                 initialize=eval(substitute(function(...) {
+### What is this for? Don't we need to instantiate the delegate?
                   assign('implements', implements, .self)
                   callSuper(...)
                   .self
