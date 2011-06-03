@@ -33,7 +33,8 @@ setJavaImplementation <- function(...,
   delegateMethods <-
     structure(Map(function(delegateMethod)
                   eval(substitute(function(...) {
-                    ### again, shouldn't `$`(delegate, delegateMethod) work?
+                    ## again, shouldn't `$`(delegate, delegateMethod)
+                    ## work?
                     do.call(`$`, list(delegate, delegateMethod))(...)
                   },
                                   list(delegate=delegate,
@@ -49,7 +50,8 @@ setJavaImplementation <- function(...,
               methods=c(delegateMethods,
                 methods,
                 initialize=eval(substitute(function(...) {
-### What is this for? Don't we need to instantiate the delegate?
+                  ## What is this for? Don't we need to instantiate
+                  ## the delegate?
                   assign('implements', implements, .self)
                   callSuper(...)
                   .self
