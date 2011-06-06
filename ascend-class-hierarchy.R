@@ -3,8 +3,8 @@
 library(functional)
 source('preamble.R')
 
-Delegate <-
-  setRefClass('Delegate',
+JavaReference <-
+  setRefClass('JavaReference',
               fields=list(ref='jobjRef',
                 implements='character'),
               methods=c(initialize=function(...) {
@@ -14,7 +14,7 @@ Delegate <-
 
                 ## Do this.
                 class <- class(.self)
-                if (!(class == 'Delegate'))
+                if (!(class == 'JavaReference'))
                   if (J('java.lang.Class')$forName(class)$isInterface()) {
                     if (length(.self$implements))
                       ref <<- interfaceProxy(.self$implements, .self)
@@ -43,7 +43,7 @@ setJavaRefClass <- function(className)
              superclassName <- 
                if (is.null(superclass))
                  ## NULL
-                 'Delegate'
+                 'JavaReference'
                else
                  superclass$getName()
              
