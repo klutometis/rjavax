@@ -2,9 +2,8 @@
 
 source('ascend-class-hierarchy.R')
 
-### FIXME: why can this not just be `$`(refClass, method)
-dollarsToJava <- function(refClass, method)
-  toJava(do.call(`$`, list(refClass, method)))
+dollarsToJava <- function(object, method)
+  toJava(do.call(`$`, list(object, method)))
 
 interfaceProxy <- function(interface, implementation)
   new(J('RInterfaceProxy'),
@@ -12,52 +11,48 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
-### FIXME: we cannot extend anything else but java.lang.Object for now
-### Do we even want the argument? If we do want it, we need to check
-### it, and it should probably be the last argument.
 ### FIXME: we need to check that a method is provided for each interface method
 setJavaImplementation <- function(...,
-                                  methods=NULL,
-                                  contains=NULL,
-                                  extends='java.lang.Object',
-                                  implements) {
+                                  methods = list(),
+                                  contains = character(),
+                                  implements = character(),
+                                  extends = "java.lang.Object")
+{
   for (implement in implements)
     setJavaRefClass(implement)
 
-  delegate <- getJavaRefClass(extends)$new()
-
+  if (!identical(extends, "java.lang.Object"))
+    stop("Currently, it is only possible to extend 'java.lang.Object'")
+  
   delegateMethods <-
     Map(function(method) method$getName(),
         as.list(J('java.lang.Class')$forName(extends)$getMethods()))
 
   delegateMethods <-
-    structure(Map(function(delegateMethod)
-                  eval(substitute(function(...) {
-                    ## again, shouldn't `$`(delegate, delegateMethod)
-                    ## work?
-                    do.call(`$`, list(delegate, delegateMethod))(...)
-                  },
-                                  list(delegate=delegate,
-                                       delegateMethod=delegateMethod))),
-                  delegateMethods),
-              names=delegateMethods)
+    sapply(as.character(unlist(delegateMethods)), function(delegateMethod)
+           eval(substitute(function(...) {
+             `$`(delegate, delegateMethod)(...)
+           }, list(delegateMethod=delegateMethod))))
 
+  initialize <- methods$initialize
+  methods$initialize <- NULL
+
+  delegateMethods[names(methods)] <- methods
+  
   setRefClass(...,
-              contains=c(contains,
-                extends,
-                implements),
-              fields=c(delegate='jobjRef'),
+              contains=c(contains, extends, implements),
+              fields=list(delegate='jobjRef'),
               methods=c(delegateMethods,
-                methods,
                 initialize=eval(substitute(function(...) {
-                  ## What is this for? Don't we need to instantiate
-                  ## the delegate?
-                  assign('implements', implements, .self)
-                  callSuper(...)
-                  .self
-                },
-                  list(implements=implements,
-                       delegateMethods=delegateMethods)))))
+                  delegate <<- new(J(extends))
+                  ref <<- interfaceProxy(implements, .self)
+                  if (hasInitialize)
+                    initialize(...)
+                  else .self
+                }, list(implements = implements,
+                        initialize = initialize,
+                        hasInitialize = !is.null(initialize),
+                        extends = extends)))))
 }
 
 Comparable <-
@@ -73,7 +68,7 @@ OverriddenComparable <-
 
 comparable <- Comparable$new()
 comparable$compareTo(Object$new())
-## Wow: hashCode() and ref$hashCode() yield different results!
+## These should (and do) yield the same result:
 comparable$hashCode()
 comparable$ref$hashCode()
 
