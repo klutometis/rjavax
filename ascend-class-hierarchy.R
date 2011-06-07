@@ -32,24 +32,28 @@ setJavaRefClass <- function(className)
                setJavaRefClass(interface)
 
              ## sort the interfaces lexicographically to avoid inconsistencies
-             contains <- c(contains, sort(unlist(interfaces)))
+             contains <- c(superclassName,
+                           sort(as.character(unlist(interfaces))))
 
+             isAbstract <- function(class) {
+               J('java.lang.reflect.Modifier')$isAbstract(class$getModifiers())
+             }
              ## if an interface or an abstract class, need to contain VIRTUAL
-             if (class$isInterface() || class$isAbstract())
+             if (class$isInterface() || isAbstract(class))
                contains <- c(contains, "VIRTUAL")
              
              declaredMethods <-
-               Map(function(method) method$getName(),
-                   as.list(class$getDeclaredMethods()))
-
+               as.character(unlist(Map(function(method) method$getName(),
+                                       as.list(class$getDeclaredMethods()))))
+             
              methods <- sapply(declaredMethods, function(method) {
                eval(substitute(function(...) {
-                 arguments <- Map(function(argument) {
-                   if (is(argument, 'java.lang.Object')) {
+                 arguments <- base::Map(function(argument) {
+                   if (methods::is(argument, 'java.lang.Object')) {
                      argument$ref
                    } else
                    argument
-                 }, list(...))
+                 }, base::list(...))
                  
                  ##
                  ## java.lang.Object will not have
@@ -62,7 +66,7 @@ setJavaRefClass <- function(className)
                  ## twice; could it be calling
                  ## finalize() on a methodless zombie?
                  ##
-                 debug(.self, .self$ref, method, arguments, call.stack=FALSE)
+                 ##debug(.self, .self$ref, method, arguments, call.stack=FALSE)
                  if (hasMethod(.self$ref, method))
                    do.call(.jrcall, c(.self$ref, method, arguments))
                }, list(method=method)))
@@ -72,10 +76,11 @@ setJavaRefClass <- function(className)
                setRefClass("java.lang.Object", fields = list(ref = 'jobjRef'),
                            methods = c(methods,
                              initialize = function(...) {
-                               new(J(class(.self), ...))
+                               ref <<- new(J(class(.self)), ...)
+                               .self
                              }),
                            contains = contains)
-             else setRefClass(className, contains = contains)
+             else setRefClass(className, methods = methods, contains = contains)
            })
 
 File <- setJavaRefClass('java.io.File')
