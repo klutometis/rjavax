@@ -78,6 +78,14 @@ setJavaRefClass <- function(className)
                              initialize = function(...) {
                                ref <<- new(J(class(.self)), ...)
                                .self
+                             },
+                             copy = function(shallow = FALSE) {
+                               ## unlike clone(), this preserves any
+                               ## fields that may be present in
+                               ## an R-specific subclass
+                               x <- callSuper(shallow)
+                               x$ref <- ref$clone()
+                               x
                              }),
                            contains = contains)
              else setRefClass(className, methods = methods, contains = contains)

@@ -11,9 +11,6 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
-### FIXME: We are establishing a reference cycle that will leak memory.
-### The Java object owns the R object, and the R object owns the Java object.
-
 ### FIXME: we need to check that a method is provided for each interface method
 setJavaImplementation <- function(Class,
                                   fields = list(),
@@ -30,6 +27,8 @@ setJavaImplementation <- function(Class,
   if (!identical(extends, "java.lang.Object"))
     stop("Currently, it is only possible to extend 'java.lang.Object'")
 
+  implClassName <- paste(Class, "Impl", sep = "")
+  
   delegateMethods <-
     Map(function(method) method$getName(),
         as.list(J('java.lang.Class')$forName(extends)$getDeclaredMethods()))
@@ -51,12 +50,14 @@ setJavaImplementation <- function(Class,
 
   ## toString
   delegateMethods$toString <- eval(substitute(function() {
-    paste("R object of class '", name, "', implementing ",
+    paste("rJavax object of class '", name, "', implementing ",
           paste("'", implements, "'", collapse = ", ", sep = ""), sep = "")
   }, list(name = Class, implements = implements)))
   
   ## clone
-  delegateMethods$clone <- function() copy()$ref
+  delegateMethods$clone <- eval(substitute(function() {
+    interfaceProxy(implements, new(implClass))
+  }, list(implements = implements, implClassName)))
 
   initialize <- methods$initialize
   methods$initialize <- NULL
@@ -64,28 +65,30 @@ setJavaImplementation <- function(Class,
   delegateMethods[names(methods)] <- methods
 
   fields$delegate <- "jobjRef"
-  
-  setRefClass(Class,
+
+  setRefClass(implClassName,
+              contains = contains,
               fields = fields,
-              contains = c(contains, extends, implements),
               methods = c(delegateMethods,
                 initialize = eval(substitute(function(...) {
                   delegate <<- new(J(extends))
-                  ref <<- interfaceProxy(implements, .self)
                   if (hasInitialize)
                     initialize(...)
                   else .self
-                }, list(implements = implements,
-                        initialize = initialize,
+                }, list(initialize = initialize,
                         hasInitialize = !is.null(initialize),
-                        extends = extends))),
-                copy = eval(substitute(function(shallow = FALSE) {
-                  x <- callSuper(shallow)
-                  ## we do not want to inherit these from the original object
-                  x$delegate <- new(J(extends))
-                  x$ref <- interfaceProxy(implements, x)
-                  x
-                }, list(implements = implements, extends = extends)))),
+                        extends = extends)))
+                ),
+              where = where, ...)
+  
+  setRefClass(Class,
+              contains = c(extends, implements),
+              methods = list(
+                initialize = eval(substitute(function(...) {
+                  ref <<- interfaceProxy(implements, new(implClass))
+                  .self
+                }, list(implements = implements,
+                        implClass = implClassName)))),
               where = where, ...)
 }
 
@@ -98,7 +101,7 @@ OverriddenComparable <-
   setJavaImplementation('OverriddenComparable',
                         implements='java.lang.Comparable',
                         methods=c(compareTo=function(object) as.integer(0),
-                          hashCode=function() -1))
+                          hashCode=function() -1L))
 
 comparable <- Comparable$new()
 comparable$compareTo(Object$new())
