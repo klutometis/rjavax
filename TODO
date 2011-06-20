@@ -2095,3 +2095,44 @@
    Through setRefClass, name of the implementing refClass is
    defined. ref no longer points to the delegate object, but the
    proxy.
+** Wed Jun 15 16:07:14 CDT 2011
+   cycle: java has a reference to R has one to java.
+
+   create a reference object proxy for jobjRef; break the memory cycle
+
+   cycle, never be garbage collected;
+
+   undeletable until passed to IGB;
+
+   invocationHandler only thing that keeps a reference to
+   referenceClass object (user never interacts with it); new
+   referenceClass wrapper around the jobjRef; some mode in which we
+   have a reference and inject it into referenceClass object.
+
+   java has references to methods in R; in R, we have a reference to
+   the java instance.
+
+   no, doesn't break the cycle.
+
+   object doesn't need to be part of a reference cl...
+
+   go back to list of methods; referenceClass object cannot have a
+   reference to itself (i.e. the ref field).
+
+   ref doesn't have to inherit from java superclass; doesn't need a
+   reference to its java self.
+
+   class that return from setJI, normal wrapper: equivalent of
+   setJavaRefClass; initialize method will call java.lang.Proxy, key
+   is: has to be a separate object.
+
+   thing that we pass into interfaceProxy: implementation never going
+   to be seen by R.
+
+   instead of passing .self in setJavaReferencClass, pass object that
+   has fields, methods, etc. other class sort of
+   setJavaReferenceClass, except replace init. initialize with other
+   object.
+
+   return value from setJavaReferenceClass; check the return value,
+   wrap it in setJavaRefClass.
