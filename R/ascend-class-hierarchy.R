@@ -1,7 +1,3 @@
-#!/usr/local/bin/R --vanilla --slave -f
-
-source('preamble.R')
-
 getJavaRefClass <- getRefClass
 
 ## Should we memoize this somewhere? Requires an expensive call into
@@ -13,7 +9,9 @@ hasMethod <- function(referent, method)
          .jcast(referent, "java/lang/Object" ),
          method)
 
-setJavaRefClass <- function(className)
+##' @export
+setJavaRefClass <- function(className,
+                            where=topenv(parent.frame()))
   tryCatch(getJavaRefClass(className),
            error=function(e) {
              class <- J('java.lang.Class')$forName(className)
@@ -73,7 +71,8 @@ setJavaRefClass <- function(className)
              })
 
              if (className == "java.lang.Object")
-               setRefClass("java.lang.Object", fields = list(ref = 'jobjRef'),
+               setRefClass("java.lang.Object",
+                           fields = list(ref = 'jobjRef'),
                            methods = c(methods,
                              initialize = function(...) {
                                ref <<- new(J(class(.self)), ...)
@@ -87,21 +86,10 @@ setJavaRefClass <- function(className)
                                x$ref <- ref$clone()
                                x
                              }),
-                           contains = contains)
-             else setRefClass(className, methods = methods, contains = contains)
+                           contains = contains,
+                           where = where)
+             else setRefClass(className,
+                              methods = methods,
+                              contains = contains,
+                              where = where)
            })
-
-File <- setJavaRefClass('java.io.File')
-## Calling a Java method (the File-constructor) with a native R type
-## (character):
-stopifnot(File$new('/tmp')$getPath() == '/tmp')
-
-## java.lang.Object is automagically defined as the parent of
-## java.io.file.
-Object <- getJavaRefClass('java.lang.Object')
-o1 <- Object$new()
-o2 <- Object$new()
-## Calling a Java method with a javaRefClass (extraction of the ref
-## happens behind-the-scenes):
-stopifnot(o1$equals(o1))
-stopifnot(!o1$equals(o2))

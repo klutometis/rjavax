@@ -6,6 +6,12 @@ Author: Peter Danenberg <pcd@roxygen.org>
 Description: Support for e.g. interfaces
 SystemRequirements: Java (>= 1.5)
 Version: 0.1
-Depends: rJava
-Suggests: RUnit
-Collate: 'interface.R' 'onLoad.R'
+Depends:
+    rJava
+Suggests:
+    RUnit
+Collate:
+    'interface.R'
+    'onLoad.R'
+    'ascend-class-hierarchy.R'
+    'set-java-implementation.R'

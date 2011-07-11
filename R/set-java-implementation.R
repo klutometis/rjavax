@@ -1,7 +1,3 @@
-#!/usr/local/bin/R --vanilla --slave -f
-
-source('ascend-class-hierarchy.R')
-
 dollarsToJava <- function(object, method)
   toJava(do.call(`$`, list(object, method)))
 
@@ -12,6 +8,8 @@ interfaceProxy <- function(interface, implementation)
       toJava(implementation))$newInstance()
 
 ### FIXME: we need to check that a method is provided for each interface method
+##' @include ascend-class-hierarchy.R
+##' @export
 setJavaImplementation <- function(Class,
                                   fields = list(),
                                   contains = character(),
@@ -91,24 +89,3 @@ setJavaImplementation <- function(Class,
                         implClass = implClassName)))),
               where = where, ...)
 }
-
-Comparable <-
-  setJavaImplementation('Comparable',
-                        implements='java.lang.Comparable',
-                        methods=c(compareTo=function(object) as.integer(0)))
-
-OverriddenComparable <-
-  setJavaImplementation('OverriddenComparable',
-                        implements='java.lang.Comparable',
-                        methods=c(compareTo=function(object) as.integer(0),
-                          hashCode=function() -1L))
-
-comparable <- Comparable$new()
-comparable$compareTo(Object$new())
-## These should (and do) yield the same result:
-comparable$hashCode()
-comparable$ref$hashCode()
-
-overriddenComparable <- OverriddenComparable$new()
-overriddenComparable$hashCode()
-## overriddenComparable$ref$compareTo(Object$new())

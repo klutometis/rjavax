@@ -1,3 +1,5 @@
-import(rJava)
 export(interfaceProxy)
+export(setJavaImplementation)
 export(setJavaInterfaceImplementation)
+export(setJavaRefClass)
+import(rJava)
