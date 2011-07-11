@@ -9,6 +9,10 @@ hasMethod <- function(referent, method)
          .jcast(referent, "java/lang/Object" ),
          method)
 
+##' Create a refClass-based proxy for Java classes.
+##' @param className the class to be proxied
+##' @param where environment to define the refClass in
+##' @return a refClass-based Java-class-proxy.
 ##' @export
 setJavaRefClass <- function(className,
                             where=topenv(parent.frame()))

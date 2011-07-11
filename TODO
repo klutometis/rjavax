@@ -3,9 +3,8 @@
   #+BEGIN_SRC R :tangle set-java-implementation.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     source('ascend-class-hierarchy.R')
     
-    ### FIXME: why can this not just be `$`(refClass, method)
-    dollarsToJava <- function(refClass, method)
-      toJava(do.call(`$`, list(refClass, method)))
+    dollarsToJava <- function(object, method)
+      toJava(do.call(`$`, list(object, method)))
     
     interfaceProxy <- function(interface, implementation)
       new(J('RInterfaceProxy'),
@@ -13,52 +12,96 @@
           toJava(dollarsToJava),
           toJava(implementation))$newInstance()
     
-    ### FIXME: we cannot extend anything else but java.lang.Object for now
-    ### Do we even want the argument? If we do want it, we need to check
-    ### it, and it should probably be the last argument.
-    ### FIXME: we need to check that a method is provided for each interface method
-    setJavaImplementation <- function(...,
-                                      methods=NULL,
-                                      contains=NULL,
-                                      extends='java.lang.Object',
-                                      implements) {
+    ##' Create a Java-proxy-interface-backed refClass.
+    ##' @param Class name of the Java interface to be implemented
+    ##' @param fields cf. \code{\link{ReferenceClasses}}
+    ##' @param contains cf. \code{\link{ReferenceClasses}}
+    ##' @param methods cf. cf. \code{\link{ReferenceClasses}}
+    ##' @param implements a character vector of Java interfaces implemented
+    ##' @param extends which Java base class is extended
+    ##' @param where the environment to define the javaRefClass in
+    ##' @return a Java-proxy-interface-backed refClass
+    ##' @include ascend-class-hierarchy.R
+    ##' @export
+    ##' @TODO we need to check that a method is provided for each interface method
+    setJavaImplementation <- function(Class,
+                                      fields = list(),
+                                      contains = character(),
+                                      methods = list(),
+                                      implements = character(),
+                                      extends = "java.lang.Object",
+                                      where = topenv(parent.frame()),
+                                      ...)
+    {
       for (implement in implements)
         setJavaRefClass(implement)
     
-      delegate <- getJavaRefClass(extends)$new()
+      if (!identical(extends, "java.lang.Object"))
+        stop("Currently, it is only possible to extend 'java.lang.Object'")
     
+      implClassName <- paste(Class, "Impl", sep = "")
+      
       delegateMethods <-
         Map(function(method) method$getName(),
-            as.list(J('java.lang.Class')$forName(extends)$getMethods()))
+            as.list(J('java.lang.Class')$forName(extends)$getDeclaredMethods()))
     
       delegateMethods <-
-        structure(Map(function(delegateMethod)
-                      eval(substitute(function(...) {
-                        ## again, shouldn't `$`(delegate, delegateMethod)
-                        ## work?
-                        do.call(`$`, list(delegate, delegateMethod))(...)
-                      },
-                                      list(delegate=delegate,
-                                           delegateMethod=delegateMethod))),
-                      delegateMethods),
-                  names=delegateMethods)
+        sapply(as.character(unlist(delegateMethods)), function(delegateMethod)
+               eval(substitute(function(...) {
+                 `$`(delegate, delegateMethod)(...)
+               }, list(delegateMethod=delegateMethod))))
     
-      setRefClass(...,
-                  contains=c(contains,
-                    extends,
-                    implements),
-                  fields=c(delegate='jobjRef'),
-                  methods=c(delegateMethods,
-                    methods,
-                    initialize=eval(substitute(function(...) {
-                      ## What is this for? Don't we need to instantiate
-                      ## the delegate?
-                      assign('implements', implements, .self)
-                      callSuper(...)
+      ## Some methods we need to override
+    
+      ## getClass
+      interfaces <- lapply(implements, J('java.lang.Class')$forName)
+      delegateMethods$getClass <- eval(substitute(function() {
+        J("java.lang.reflect.Proxy")$getProxyClass(loader, interfaces)
+      }, list(loader = interfaces[[1]]$getClassLoader(),
+              interfaces = .jarray(interfaces, "java.lang.Class"))))
+    
+      ## toString
+      delegateMethods$toString <- eval(substitute(function() {
+        paste("rJavax object of class '", name, "', implementing ",
+              paste("'", implements, "'", collapse = ", ", sep = ""), sep = "")
+      }, list(name = Class, implements = implements)))
+      
+      ## clone
+      delegateMethods$clone <- eval(substitute(function() {
+        interfaceProxy(implements, new(implClass))
+      }, list(implements = implements, implClassName)))
+    
+      initialize <- methods$initialize
+      methods$initialize <- NULL
+    
+      delegateMethods[names(methods)] <- methods
+    
+      fields$delegate <- "jobjRef"
+    
+      setRefClass(implClassName,
+                  contains = contains,
+                  fields = fields,
+                  methods = c(delegateMethods,
+                    initialize = eval(substitute(function(...) {
+                      delegate <<- new(J(extends))
+                      if (hasInitialize)
+                        initialize(...)
+                      else .self
+                    }, list(initialize = initialize,
+                            hasInitialize = !is.null(initialize),
+                            extends = extends)))
+                    ),
+                  where = where, ...)
+      
+      setRefClass(Class,
+                  contains = c(extends, implements),
+                  methods = list(
+                    initialize = eval(substitute(function(...) {
+                      ref <<- interfaceProxy(implements, new(implClass))
                       .self
-                    },
-                      list(implements=implements,
-                           delegateMethods=delegateMethods)))))
+                    }, list(implements = implements,
+                            implClass = implClassName)))),
+                  where = where, ...)
     }
     
     Comparable <-
@@ -70,7 +113,7 @@
       setJavaImplementation('OverriddenComparable',
                             implements='java.lang.Comparable',
                             methods=c(compareTo=function(object) as.integer(0),
-                              hashCode=function() -1))
+                              hashCode=function() as.integer(-1)))
     
     comparable <- Comparable$new()
     comparable$compareTo(Object$new())
@@ -217,29 +260,7 @@
   than [[declared-methods][publication]] (v. infra).
 
   #+BEGIN_SRC R :tangle ascend-class-hierarchy.R :noweb yes :shebang #!/usr/local/bin/R --vanilla --slave -f
-    library(functional)
     source('preamble.R')
-    
-    Delegate <-
-      setRefClass('Delegate',
-                  fields=list(ref='jobjRef',
-                    implements='character'),
-                  methods=c(initialize=function(...) {
-                    ## This bothers me; I realize it's the base-case in
-                    ## our recursion: but why not allow java.lang.Object
-                    ## to be the base-case?
-    
-                    ## Do this.
-                    class <- class(.self)
-                    if (!(class == 'Delegate'))
-                      if (J('java.lang.Class')$forName(class)$isInterface()) {
-                        if (length(.self$implements))
-                          ref <<- interfaceProxy(.self$implements, .self)
-                      } else
-                        ref <<- new(J(class(.self)), ...)
-                    .self
-                  })
-                  )
     
     getJavaRefClass <- getRefClass
     
@@ -252,120 +273,93 @@
              .jcast(referent, "java/lang/Object" ),
              method)
     
-    setJavaRefClass <- function(className)
+    ##' Create a refClass-based proxy for Java classes.
+    ##' @param className the class to be proxied
+    ##' @param where environment to define the refClass in
+    ##' @return a refClass-based Java-class-proxy.
+    ##' @export
+    setJavaRefClass <- function(className,
+                                where=topenv(parent.frame()))
       tryCatch(getJavaRefClass(className),
                error=function(e) {
-                 class <- J('java.lang.Class')$forName(className)             
+                 class <- J('java.lang.Class')$forName(className)
+    
                  superclass <- class$getSuperclass()
-                 superclassName <- 
-                   if (is.null(superclass))
-                     ## NULL
-                     'Delegate'
-                   else
-                     superclass$getName()
-                 
-                 if (!is.null(superclass)) 
-                   setJavaRefClass(superclassName)
+                 superclassName <- NULL
+                 if (!is.null(superclass)) {
+                   superclassName <- superclass$getName()
+                   setJavaRefClass(superclassName, where)
+                 }
                  
                  interfaces <- Map(function(interface) interface$getName(),
                                    as.list(class$getInterfaces()))
     
-                 ## setJavaRefClass on an interface, really? Apparently.
                  for (interface in interfaces)
-                   setJavaRefClass(interface)
+                   setJavaRefClass(interface, where)
     
-                 ## DONE: this must also include the interfaces, sorted
-                 ## lexicographically, iff the class explicitly implements
-                 ## the interface (not through inheritance).
-                 contains <- sort(unlist(c(superclassName, interfaces)))
+                 ## sort the interfaces lexicographically to avoid inconsistencies
+                 contains <- c(superclassName,
+                               sort(as.character(unlist(interfaces))))
     
+                 isAbstract <- function(class) {
+                   J('java.lang.reflect.Modifier')$isAbstract(class$getModifiers())
+                 }
+                 ## if an interface or an abstract class, need to contain VIRTUAL
+                 if (class$isInterface() || isAbstract(class))
+                   contains <- c(contains, "VIRTUAL")
+                 
                  declaredMethods <-
-                   Map(function(method) method$getName(),
-                       as.list(class$getDeclaredMethods()))
+                   as.character(unlist(Map(function(method) method$getName(),
+                                           as.list(class$getDeclaredMethods()))))
+                 
+                 methods <- sapply(declaredMethods, function(method) {
+                   eval(substitute(function(...) {
+                     arguments <- base::Map(function(argument) {
+                       if (methods::is(argument, 'java.lang.Object')) {
+                         argument$ref
+                       } else
+                       argument
+                     }, base::list(...))
+                     
+                     ##
+                     ## java.lang.Object will not have
+                     ## e.g. finalize() under certain
+                     ## conditions (namely,
+                     ## superclass-initialization when
+                     ## creating a generator object).
+                     ##
+                     ## I notice that finalize() is called
+                     ## twice; could it be calling
+                     ## finalize() on a methodless zombie?
+                     ##
+                     ##debug(.self, .self$ref, method, arguments, call.stack=FALSE)
+                     if (hasMethod(.self$ref, method))
+                       do.call(.jrcall, c(.self$ref, method, arguments))
+                   }, list(method=method)))
+                 })
     
-                 methods <-
-                   structure(Map(function(method)
-                                 eval(substitute(function(...) {
-                                   arguments <-
-                                     Map(function(argument) {
-                                       if (inherits(argument, 'java.lang.Object')) {
-                                         ## Controversy starts here: do we
-                                         ## take the ref or the proxy?
-                                         ## Maybe that's why we can't have
-                                         ## refs and proxies; in Java
-                                         ## they're one and the same.
-                                         ##
-                                         ## Even if we have an interface
-                                         ## with a ref; there's the
-                                         ## problem of whether or not to
-                                         ## take the object or the ref,
-                                         ## isn't there?
-                                         ##
-                                         ## No; let's take the ref, and
-                                         ## delegate the functions (if
-                                         ## need be) to a delegate; the
-                                         ## delegate can be invisible,
-                                         ## can't it?
-                                         argument$ref
-                                       } else
-                                         argument
-                                     },
-                                         ## Wow, dudes: list(...)
-                                         ## segfaults on niladic
-                                         ## evaluation; sweet!
-                                         c(...))
-                                   
-                                   ## Memoize this somewhere? Also: what
-                                   ## to do when the method doesn't exist:
-                                   ## aren't there legitimate cases to
-                                   ## propagate the error?
-                                   ##
-                                   ## Anyway, the bizarre thing is that
-                                   ## e.g. java.lang.Object will not have
-                                   ## e.g. finalize() under certain
-                                   ## conditions (namely,
-                                   ## superclass-initialization when
-                                   ## creating a generator object).
-                                   ##
-                                   ## Why? No idea.
-                                   ##
-                                   ## I notice that finalize() is called
-                                   ## twice; could it be calling
-                                   ## finalize() on a methodless zombie?
-                                   ##
-                                   ## Is it problematic that object doesn't change?
-                                   ## What if they change the ref on the class? Let's
-                                   ## make object a thunk.
-                                   debug(.self,
-                                         .self$ref,
-                                         method,
-                                         arguments,
-                                         call.stack=FALSE)
-                                   if (hasMethod(.self$ref, method))
-                                     do.call(.jrcall, c(.self$ref,
-                                                        method,
-                                                        arguments))
+                 if (className == "java.lang.Object")
+                   setRefClass("java.lang.Object",
+                               fields = list(ref = 'jobjRef'),
+                               methods = c(methods,
+                                 initialize = function(...) {
+                                   ref <<- new(J(class(.self)), ...)
+                                   .self
                                  },
-                                                 list(method=method))),
-                                 declaredMethods),
-                             names=declaredMethods)
-    
-                 setRefClass(className,
-                             fields=list(ref='jobjRef'),
-                             contains=contains
-                             ## methods=c(methods,
-                             ##   initialize=eval(substitute(function(...) {
-                             ##     debug(className,
-                             ##           list(...),
-                             ##           call.stack=FALSE)
-                             ##     if (J('java.lang.Class')$forName(className)$isInterface())
-                             ##       ref <<- interfaceProxy(.self$implements, .self)
-                             ##     else
-                             ##       ref <<- new(J(className), ...)
-                             ##     .self
-                             ##   },
-                             ##     list(className=className))))
-                             )
+                                 copy = function(shallow = FALSE) {
+                                   ## unlike clone(), this preserves any
+                                   ## fields that may be present in
+                                   ## an R-specific subclass
+                                   x <- callSuper(shallow)
+                                   x$ref <- ref$clone()
+                                   x
+                                 }),
+                               contains = contains,
+                               where = where)
+                 else setRefClass(className,
+                                  methods = methods,
+                                  contains = contains,
+                                  where = where)
                })
     
     File <- setJavaRefClass('java.io.File')

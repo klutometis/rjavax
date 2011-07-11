@@ -7,9 +7,18 @@ interfaceProxy <- function(interface, implementation)
       toJava(dollarsToJava),
       toJava(implementation))$newInstance()
 
-### FIXME: we need to check that a method is provided for each interface method
+##' Create a Java-proxy-interface-backed refClass.
+##' @param Class name of the Java interface to be implemented
+##' @param fields cf. \code{\link{ReferenceClasses}}
+##' @param contains cf. \code{\link{ReferenceClasses}}
+##' @param methods cf. cf. \code{\link{ReferenceClasses}}
+##' @param implements a character vector of Java interfaces implemented
+##' @param extends which Java base class is extended
+##' @param where the environment to define the javaRefClass in
+##' @return a Java-proxy-interface-backed refClass
 ##' @include ascend-class-hierarchy.R
 ##' @export
+##' @TODO we need to check that a method is provided for each interface method
 setJavaImplementation <- function(Class,
                                   fields = list(),
                                   contains = character(),
