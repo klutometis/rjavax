@@ -20,14 +20,14 @@ setJavaRefClass <- function(className,
              superclassName <- NULL
              if (!is.null(superclass)) {
                superclassName <- superclass$getName()
-               setJavaRefClass(superclassName)
+               setJavaRefClass(superclassName, where)
              }
              
              interfaces <- Map(function(interface) interface$getName(),
                                as.list(class$getInterfaces()))
 
              for (interface in interfaces)
-               setJavaRefClass(interface)
+               setJavaRefClass(interface, where)
 
              ## sort the interfaces lexicographically to avoid inconsistencies
              contains <- c(superclassName,
