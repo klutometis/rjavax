@@ -2133,3 +2133,37 @@
 ** Mon Jun 27 10:20:48 PDT 2011
    Release in R, named object in Java; table of hash keys. Keep an
    external pointer or the name of the object. Call it back into R.
+** Tue Jul 12 13:06:44 PDT 2011
+   data from R into IGB; or from IGB into R. useful: from R into
+   IGB. some familiarity with genomic ranges package. map genomic
+   ranges into IGB. where IGB asks for something element-wise, go into
+   R and pull it out.
+
+   batch query to R, hash it; don't want to copy all the data. pull
+   out some subset. don't want to depend on implementation in R level;
+   pull out reference to integer vector.
+
+   make it so it's more abstract: handle different implementations at
+   the R level; smart about pulling out blocks of data. IGB accessing
+   them sequentially (as opposed to random access).
+
+   pull out a vector of data from the R structure, keep it (e.g. Java
+   array); satisfy IGB's queries with that data structure.
+
+   caching on the Java side; initial prototype: make it
+   work. implement IGB data model with genomic ranges class.
+
+   IGB: sourceforge; email Lance and ask him to point me to the right
+   classes; JSM two weeks.
+
+   GRanges class (genomic ranges package) as opposed to the class
+   "genomic ranges" (base abstract class); get the data model
+   implemented, get into IGB as a loaded track; click, update view,
+   draw something; gene-model type of track; shows you where the genes
+   are (in IGB, a graph is a "quantitative track"; one extra column in
+   the GRanges (element metadata), IGB: univariate display (graphs
+   have only one Y variable: the score); single column within a given
+   GRanges object: treat that as score).
+
+   take whatever's in the example file in GRanges; see if we can
+   display it in IGB. (in the help for GRanges; three intervals.)
