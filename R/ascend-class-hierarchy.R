@@ -1,14 +1,5 @@
 getJavaRefClass <- getRefClass
 
-## Should we memoize this somewhere? Requires an expensive call into
-## Java.
-hasMethod <- function(referent, method)
-  .jcall("RJavaTools",
-         "Z",
-         "hasMethod",
-         .jcast(referent, "java/lang/Object" ),
-         method)
-
 ##' Create a refClass-based proxy for Java classes.
 ##' @param className the class to be proxied
 ##' @param where environment to define the refClass in
@@ -43,34 +34,24 @@ setJavaRefClass <- function(className,
              ## if an interface or an abstract class, need to contain VIRTUAL
              if (class$isInterface() || isAbstract(class))
                contains <- c(contains, "VIRTUAL")
+
+             notProtected <- function(m) {
+               !J('java.lang.reflect.Modifier')$isProtected(m$getModifiers())
+             }
              
              declaredMethods <-
-               as.character(unlist(Map(function(method) method$getName(),
-                                       as.list(class$getDeclaredMethods()))))
+               Map(function(method) method$getName(), 
+                   Filter(notProtected, as.list(class$getDeclaredMethods())))
              
-             methods <- sapply(declaredMethods, function(method) {
+             methods <- sapply(as.character(declaredMethods), function(method) {
                eval(substitute(function(...) {
                  arguments <- base::Map(function(argument) {
                    if (methods::is(argument, 'java.lang.Object')) {
                      argument$ref
                    } else
                    argument
-                 }, base::list(...))
-                 
-                 ##
-                 ## java.lang.Object will not have
-                 ## e.g. finalize() under certain
-                 ## conditions (namely,
-                 ## superclass-initialization when
-                 ## creating a generator object).
-                 ##
-                 ## I notice that finalize() is called
-                 ## twice; could it be calling
-                 ## finalize() on a methodless zombie?
-                 ##
-                 ##debug(.self, .self$ref, method, arguments, call.stack=FALSE)
-                 if (hasMethod(.self$ref, method))
-                   do.call(.jrcall, c(.self$ref, method, arguments))
+                 }, base::list(...))                 
+                 do.call(.jrcall, c(.self$ref, method, arguments))
                }, list(method=method)))
              })
 
