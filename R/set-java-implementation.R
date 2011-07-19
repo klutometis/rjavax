@@ -43,7 +43,7 @@ setJavaImplementation <- function(Class,
   delegateMethods <-
     sapply(as.character(unlist(delegateMethods)), function(delegateMethod)
            eval(substitute(function(...) {
-             `$`(delegate, delegateMethod)(...)
+             `$`(.delegate, delegateMethod)(...)
            }, list(delegateMethod=delegateMethod))))
 
   ## Some methods we need to override
@@ -66,19 +66,42 @@ setJavaImplementation <- function(Class,
     interfaceProxy(implements, new(implClass))
   }, list(implements = implements, implClassName)))
 
+  ## We need to implement java.lang.Object.finalize(), even if it is
+  ## just a no-op. The problem is that setRefClass() will register any
+  ## method named "finalize" as a finalizer on the R object with
+  ## reg.finalizer(). If the user provides a 'finalize' method, we
+  ## assume it is to handle the Java call. The R call will come later,
+  ## after the Java object has been destroyed (hopefully). Thus, we
+  ## rewrite the user 'finalize' to first remove the 'finalize'
+  ## method, so that it is not called again.
+  if (is.null(methods$finalize))
+    methods$finalize <- function() { }
+  else {
+    finalize_body <- body(methods$finalize)
+    if (identical(finalize_body[[1]], as.name("{")))
+      finalize_body <- finalize_body[-1]
+    finalize_body <- as.call(c(as.name("{"),
+                               quote(if (.finalized) return()),
+                               quote(.finalized <<- TRUE),
+                               finalize_body))
+    body(methods$finalize) <- finalize_body
+  }
+  
   initialize <- methods$initialize
   methods$initialize <- NULL
 
   delegateMethods[names(methods)] <- methods
 
-  fields$delegate <- "jobjRef"
-
+  fields$.delegate <- "jobjRef"
+  fields$.finalized <- "logical"
+  
   setRefClass(implClassName,
               contains = contains,
               fields = fields,
               methods = c(delegateMethods,
                 initialize = eval(substitute(function(...) {
-                  delegate <<- new(J(extends))
+                  .finalized <<- FALSE
+                  .delegate <<- new(J(extends))
                   if (hasInitialize)
                     initialize(...)
                   else .self
