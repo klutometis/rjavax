@@ -1,4 +1,10 @@
 # -*- org -*-
+* TODO Package errors
+  #+BEGIN_SRC R :tangle package-errors.R :shebang #!/usr/local/bin/R --vanilla --slave -f
+    library(rJavax)
+    setJavaRefClass('java.io.File')
+    
+  #+END_SRC
 * TODO =setJavaImplementation= using =setJavaRefClass=
   #+BEGIN_SRC R :tangle set-java-implementation.R :shebang #!/usr/local/bin/R --vanilla --slave -f
     source('ascend-class-hierarchy.R')
