@@ -1,21 +1,19 @@
 \name{interfaceProxy}
 \alias{interfaceProxy}
-\title{Instantiate a Java-based interface-proxy for the...}
+\title{Create the Java object corresponding to the interface proxy.}
 \usage{
   interfaceProxy(interface, implementation)
 }
 \arguments{
-  \item{interface}{the name of the to-be-implemented Java
-  interface}
+  \item{interface}{the interface to proxy}
 
-  \item{implementation}{an instance of the implementing
-  \code{refClass}}
+  \item{implementation}{the implementing proxy}
 }
 \value{
-  a suitable \code{RInterfaceProxy}
+  Java interface-proxy
 }
 \description{
-  Instantiate a Java-based \code{interface}-proxy for the
-  \code{implementation}.
+  Create the Java object corresponding to the interface
+  proxy.
 }
 

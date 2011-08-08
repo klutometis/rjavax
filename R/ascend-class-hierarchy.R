@@ -1,3 +1,8 @@
+##' Get a refClass-based proxy from the given class-name.
+##' @param Class the class-name whose proxy to retrieve
+##' @param where the environment in which to get it
+##' @return the proxy or NULL
+##' @export
 getJavaRefClass <- getRefClass
 
 ##' Create a refClass-based proxy for Java classes.
@@ -45,12 +50,12 @@ setJavaRefClass <- function(className,
              
              methods <- sapply(as.character(declaredMethods), function(method) {
                eval(substitute(function(...) {
-                 arguments <- base::Map(function(argument) {
-                   if (methods::is(argument, 'java.lang.Object')) {
+                 arguments <- Map(function(argument) {
+                   if (is(argument, 'java.lang.Object')) {
                      argument$ref
                    } else
                    argument
-                 }, base::list(...))                 
+                 }, list(...))                 
                  do.call(.jrcall, c(.self$ref, method, arguments))
                }, list(method=method)))
              })

@@ -1,6 +1,11 @@
 dollarsToJava <- function(object, method)
   toJava(do.call(`$`, list(object, method)))
 
+##' Create the Java object corresponding to the interface proxy.
+##' @param interface the interface to proxy
+##' @param implementation the implementing proxy
+##' @return Java interface-proxy
+##' @export
 interfaceProxy <- function(interface, implementation)
   new(J('RInterfaceProxy'),
       interface,
@@ -15,6 +20,7 @@ interfaceProxy <- function(interface, implementation)
 ##' @param implements a character vector of Java interfaces implemented
 ##' @param extends which Java base class is extended
 ##' @param where the environment to define the javaRefClass in
+##' @param ... arguments to \code{\link{setRefClass}}
 ##' @return a Java-proxy-interface-backed refClass
 ##' @include ascend-class-hierarchy.R
 ##' @export

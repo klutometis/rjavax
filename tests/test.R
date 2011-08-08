@@ -8,26 +8,10 @@ system('make')
 .jpackage('rJavax', morePaths='.')
 .jengine(TRUE)
 
-## testInterfaceImplementation <-
-##   setRefClass('testInterfaceImplementation',
-##               methods=list(salute=function(salutandum)
-##                 sprintf('Salve, %s!', salutandum)))
-
-## testInterface <-
-##   setJavaInterfaceImplementation('TestInterfaceProxyInterface',
-##                                  testInterfaceImplementation$new())
-
-## ti <- testInterface$new()
-
-## stopifnot(ti$salute('terra') == ti$proxy$salute('terra'))
-
-## ## Test implicit inheritance from Object.
-## stopifnot(typeof(ti$hashCode()) == 'integer')
-
 File <- setJavaRefClass('java.io.File')
 ## Calling a Java method (the File-constructor) with a native R type
 ## (character):
-stopifnot(File$new('/tmp')$getPath() == '/tmp')
+## stopifnot(File$new('/tmp')$getPath() == '/tmp')
 
 ## java.lang.Object is automagically defined as the parent of
 ## java.io.file.
