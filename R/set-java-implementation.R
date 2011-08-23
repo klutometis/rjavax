@@ -34,12 +34,16 @@ setJavaImplementation <- function(Class,
                                   where = topenv(parent.frame()),
                                   ...)
 {
+  if (!length(implements))
+    stop("Must provide at least one interface in 'implements'")
+  
   for (implement in implements)
-    setJavaRefClass(implement)
+    setJavaRefClass(implement, where = where)
 
   if (!identical(extends, "java.lang.Object"))
     stop("Currently, it is only possible to extend 'java.lang.Object'")
-
+  setJavaRefClass(extends, where = where)
+  
   implClassName <- paste(Class, "Impl", sep = "")
   
   delegateMethods <-
@@ -110,7 +114,7 @@ setJavaImplementation <- function(Class,
                   .delegate <<- new(J(extends))
                   if (hasInitialize)
                     initialize(...)
-                  else .self
+                  else callSuper(...)
                 }, list(initialize = initialize,
                         hasInitialize = !is.null(initialize),
                         extends = extends)))
@@ -121,7 +125,7 @@ setJavaImplementation <- function(Class,
               contains = c(extends, implements),
               methods = list(
                 initialize = eval(substitute(function(...) {
-                  ref <<- interfaceProxy(implements, new(implClass))
+                  ref <<- interfaceProxy(implements, new(implClass, ...))
                   .self
                 }, list(implements = implements,
                         implClass = implClassName)))),
