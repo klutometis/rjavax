@@ -5,7 +5,7 @@ Title: rJava extensions
 Author: Peter Danenberg <pcd@roxygen.org>
 Description: Support for e.g. interfaces
 SystemRequirements: Java (>= 1.5)
-Version: 0.1
+Version: 0.2
 Depends:
     rJava
 Suggests:
