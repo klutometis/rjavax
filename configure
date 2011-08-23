@@ -1,0 +1,6 @@
+RLD=`"${R_HOME}/bin/R" CMD config --ldflags`
+
+if test -z "$RLD"; then
+  echo "R was not compiled with --enable-R-shlib."
+  exit 1
+fi
